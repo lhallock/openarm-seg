@@ -1,2 +1,3 @@
-nibabel -- http://nipy.org/nibabel/gettingstarted.html
-nilearn -- http://nilearn.github.io/auto_examples/plot_3d_and_4d_niimg.html
+nibabel
+nilearn
+numpy

@@ -1,7 +1,27 @@
 import numpy as np
 
+def empty_img(img):
+    """
+    Returns True if the image is empty -> only 0s.
+    """
+    return not np.count_nonzero(img)
+
+def bounding_box(img):
+    """
+    Returns copy of the img bounded by the box from the image.
+    """
+
+    rows = np.any(img, axis=1)
+    cols = np.any(img, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    box = im[rmin : rmax, cmin : cmax]
+    return box
 
 def fill(image, threshold_dist=30):
+    """
+    Grid fill image to pixel color that it is surrounded by [Fills in holes]
+    """
     rows, cols = len(image), len(image[0])
     for u in range(rows):  # Iterate through rows
         for v in range(cols):  # Iterate through cols
