@@ -99,9 +99,6 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         scipy.misc.imsave(os.path.join(trial_img_dir, str(counter) + '_label.jpg'), labeled_img)
         
         counter += 1
-        
-        if counter > 60:
-            break
 
 def main(base_data_dir, base_img_data_dir):
     matched_file_dict = {}  # Dictionary of trial_key to [seg_file, vol_file]
@@ -120,7 +117,7 @@ def main(base_data_dir, base_img_data_dir):
     # Runs the cleaning image voxel dataset -> creates cleaned 2D jpegs
     for tk, scan_lst in list(matched_file_dict.items()):
         build_image_dataset(tk, scan_lst[0], scan_lst[1], base_data_dir, base_img_data_dir)
-        break  # Remove break to create images for all scans
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 3:
