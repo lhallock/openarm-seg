@@ -47,7 +47,7 @@ def bounding_box(img):
     box = im[rmin : rmax, cmin : cmax]
     return box
 
-def fill(image, threshold_dist=30):
+def fill(image, threshold_dist=20):
     """
     Grid fill image to pixel color that it is surrounded by [Fills in holes]
     """
