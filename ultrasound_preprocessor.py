@@ -111,6 +111,7 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         imsave(os.path.join(trial_img_dir, str(counter) + '_raw.png'), raw_img)
 
         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+        labeled_img = labeled_img.astype(np.int64)
         imsave(os.path.join(trial_img_dir, str(counter) + '_label.png'), labeled_img)
         
         counter += 1
