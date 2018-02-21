@@ -13,6 +13,7 @@ from PIL import Image
 import sys
 import scipy.sparse
 import scipy.misc
+from skimage.io import imread, imsave
 
 def empty_img(img):
     """
@@ -107,14 +108,10 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
             continue
             
         raw_img = raw_voxel[i]
+        imsave(os.path.join(trial_img_dir, str(counter) + '_raw.png'), raw_img)
+
         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-        classes = [0.0, 7.0, 8.0, 9.0, 45.0, 51.0, 52.0, 53.0, 68.0]
-        one_hot_label_tensor = one_hot_encode(labeled_img, classes)
-        print(one_hot_label_tensor.shape)
-        
-        scipy.misc.imsave(os.path.join(trial_img_dir, str(counter) + '_raw.png'), raw_img)
-        np.save(os.path.join(trial_img_dir, str(counter) + '_label.npy'), one_hot_label_tensor)
-        # scipy.misc.imsave(os.path.join(trial_img_dir, str(counter) + '_label.png'), labeled_img)
+        imsave(os.path.join(trial_img_dir, str(counter) + '_label.png'), labeled_img)
         
         counter += 1
 
