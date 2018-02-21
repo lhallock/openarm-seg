@@ -106,9 +106,23 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
     for i in range(raw_voxel.shape[0]):  # shape is (1188, 482, 395)
         if empty_img(raw_voxel[i]) or empty_img(label_voxel[i]):
             continue
-            
+
         raw_img = raw_voxel[i]
-        scipy.misc.imsave(os.path.join(trial_img_dir, str(counter) + '_raw.png'), raw_img)
+        raw_img = (raw_img * 65535).round().astype(np.uint16)
+        print(np.unique(raw_img))
+        # print(raw_img.max())
+        # print(raw_img.min())
+
+        imsave(os.path.join(trial_img_dir, str(counter) + '_raw.png'), raw_img)
+        ri = imread(os.path.join(trial_img_dir, str(counter) + '_raw.png'))
+
+        # ri = ((ri.ptp()*ri)/65535 + ri.min()).astype(np.float32)
+
+        # print((raw_voxel[i] == ri).all())
+        # print(np.unique(raw_voxel[i]))
+        # print(np.unique(ri/65535))
+
+
 
         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
         labeled_img = labeled_img.astype(np.int64)
