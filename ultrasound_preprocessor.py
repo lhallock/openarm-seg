@@ -77,6 +77,20 @@ def fill(image, threshold_dist=30):
 #               np.mean([ltr_color, gtr_color, ltc_color, gtc_color])
     return image
 
+def one_hot_encode(L, class_labels):
+    h, w = 482, 395
+    try:
+        encoded = np.array([list(map(class_labels.index, L.flatten()))])
+    except Exception as e:
+        print(e)
+    L = encoded.reshape(h, w)
+
+    Lhot = np.zeros((L.shape[0], L.shape[1], 8))
+    for i in range(L.shape[0]):
+        for j in range(L.shape[1]):
+            Lhot[i,j,L[i,j]] = 1
+    return Lhot
+
 def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir):
     raw_nii_file = os.path.join(base_data_dir, raw_nii)
     label_nii_file = os.path.join(base_data_dir, label_nii)
@@ -94,9 +108,13 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
             
         raw_img = raw_voxel[i]
         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+        classes = [0.0, 7.0, 8.0, 9.0, 45.0, 51.0, 52.0, 53.0, 68.0]
+        one_hot_label_tensor = one_hot_encode(labeled_img, classes)
+        print(one_hot_label_tensor.shape)
         
         scipy.misc.imsave(os.path.join(trial_img_dir, str(counter) + '_raw.png'), raw_img)
-        scipy.misc.imsave(os.path.join(trial_img_dir, str(counter) + '_label.png'), labeled_img)
+        np.save(os.path.join(trial_img_dir, str(counter) + '_label.npy'), one_hot_label_tensor)
+        # scipy.misc.imsave(os.path.join(trial_img_dir, str(counter) + '_label.png'), labeled_img)
         
         counter += 1
 
