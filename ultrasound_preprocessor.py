@@ -15,6 +15,18 @@ import scipy.sparse
 import scipy.misc
 from skimage.io import imread, imsave
 
+
+def save_sparse_csr(filename, array):
+    # note that .npz extension is added automatically
+    np.savez(filename, data=array.data, indices=array.indices,
+             indptr=array.indptr, shape=array.shape)
+
+def load_sparse_csr(filename):
+    # here we need to add .npz extension manually
+    loader = np.load(filename + '.npz')
+    return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
+                      shape=loader['shape'])
+
 def empty_img(img):
     """
     Returns True if the image is empty -> only 0s.
@@ -47,7 +59,7 @@ def bounding_box(img):
     box = im[rmin : rmax, cmin : cmax]
     return box
 
-def fill(image, threshold_dist=20):
+def fill(image, threshold_dist=15):
     """
     Grid fill image to pixel color that it is surrounded by [Fills in holes]
     """
@@ -108,24 +120,11 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
             continue
 
         raw_img = raw_voxel[i]
-        raw_img = (raw_img * 65535).round().astype(np.uint16)
-        print(np.unique(raw_img))
-        # print(raw_img.max())
-        # print(raw_img.min())
-
-        imsave(os.path.join(trial_img_dir, str(counter) + '_raw.png'), raw_img)
-        ri = imread(os.path.join(trial_img_dir, str(counter) + '_raw.png'))
-
-        # ri = ((ri.ptp()*ri)/65535 + ri.min()).astype(np.float32)
-
-        # print((raw_voxel[i] == ri).all())
-        # print(np.unique(raw_voxel[i]))
-        # print(np.unique(ri/65535))
-
-
+        save_sparse_csr(os.path.join(trial_img_dir, str(counter) + '_raw'),
+                        scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
 
         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-        labeled_img = labeled_img.astype(np.int64)
+        labeled_img = labeled_img.astype(np.int16)
         imsave(os.path.join(trial_img_dir, str(counter) + '_label.png'), labeled_img)
         
         counter += 1
@@ -146,6 +145,7 @@ def main(base_data_dir, base_img_data_dir):
     # base_img_data_dir = "/Users/kireet/ucb/HART Research/Muscle Segmentation/cleaned_images"
     # Runs the cleaning image voxel dataset -> creates cleaned 2D jpegs
     for tk, scan_lst in list(matched_file_dict.items()):
+        print(tk)
         build_image_dataset(tk, scan_lst[0], scan_lst[1], base_data_dir, base_img_data_dir)
 
 
