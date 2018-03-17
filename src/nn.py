@@ -174,7 +174,7 @@ def train(sess, model, x_train, y_train, x_test, y_test, epochs, batch_size, sum
     step = start_step
     for i in range(epochs):
         # Shuffle indicies
-        indicies = range(x_train.shape[0])
+        indicies = list(np.arange(x_train.shape[0]))
         np.random.shuffle(indicies)
         # Start timer
         start = timeit.default_timer()
