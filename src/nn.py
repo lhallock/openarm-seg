@@ -128,7 +128,7 @@ def validate(sess, model, x_test, y_test):
             pred = np.argmax(model.predict(sess, x_test[i:i+1])[0,:,:,:], 2)
             pred = create_seg(pred,j+1)           
             overlap = np.minimum(gt, pred)
-            dice = 2*np.sum(overlap)/(np.sum(gt) + np.sum(pred))
+            dice = 2*np.sum(overlap)/(np.sum(gt) + np.sum(pred) + 1)
             scores[j] = scores[j] + dice 
             
     return [score/float(x_test.shape[0]) for score in scores]
