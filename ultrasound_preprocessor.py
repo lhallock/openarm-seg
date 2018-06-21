@@ -96,7 +96,7 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
         
 
-        file_num = str(counter).zfill(3)
+        file_num = str(counter).zfill(5)
 
         scipy.misc.imsave(os.path.join(trial_img_dir, file_num + '_raw.png'), raw_img)
         scipy.misc.imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
