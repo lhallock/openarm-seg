@@ -169,10 +169,15 @@ def train(sess, model, x_train, y_train, x_test, y_test, epochs, batch_size, sum
     @params batch_size: Integer defining mini-batch size
     @params train_validation: Integer defining how many train steps before running accuracy on training mini-batch
     '''
+    saver = tf.train.Saver(max_to_keep=1, keep_checkpoint_every_n_hours = 2)
     losses = deque([])
     train_accs = deque([])
     step = start_step
+
+
+
     for i in range(epochs):
+
         # Shuffle indicies
         indicies = list(np.arange(x_train.shape[0]))
         np.random.shuffle(indicies)
@@ -217,4 +222,8 @@ def train(sess, model, x_train, y_train, x_test, y_test, epochs, batch_size, sum
             summary_writer.add_summary(summary, step)
         val_print(i, j, np.mean(losses), acc, stop - start)
         print()
+
+        # Save model every 10 epochs
+        if i > 0 and (i % 10 == 0): 
+
         
