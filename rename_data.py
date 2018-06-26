@@ -3,14 +3,11 @@ Prepend zeros to the number in filenames of processed scan data.
 
 Usage: python rename_data.py [data_directory]
 
-.
-├── data_directory
-│   ├── 0_label.png
-│   └── 0_raw.npz
-│   └── ...
-
+data_directory
+|-- 0_label.png
+|-- 0_raw.npz
+`-- ...
 """
-
 
 import os
 from sys import argv
