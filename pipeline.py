@@ -1,8 +1,64 @@
-
+import os
+from math import floor, ceil
+import numpy as np
+import tensorflow as tf
+import random
+import nn
+import nibabel as nib
+from sklearn.metrics import confusion_matrix
+import scipy.sparse
+from scipy.misc import imrotate, imresize
+from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import rotate
+from skimage import exposure
+from skimage.io import imread, imsave
+import Unet
 
 ##################################
 # DATA FUNCTIONS
 ##################################
+
+def split_data(raw_data, seg_data, percent_train, percent_val, percent_test):
+    assert len(raw_data) == len(seg_data)
+    assert percent_train + percent_val + percent_test == 100
+
+    x_train, y_train = [], []
+    x_val, y_val = [], []
+    x_test, y_test = [], []
+
+    height, width = raw_data[0].shape
+
+    num_train = np.round(len(raw_data) * percent_train/100).astype(np.int)
+    num_val = np.round(num_train + len(raw_data) * percent_val/100).astype(np.int)
+    num_test = np.round(num_val + len(raw_data) * percent_test/100).astype(np.int)
+
+    rand_indices = list(np.random.choice(len(raw_data), len(raw_data), replace=False))
+
+    for i in rand_indices[:num_train]:
+        x_train.append(raw_data[i])
+        y_train.append(seg_data[i])
+    for j in rand_indices[num_train:num_val]:
+        x_val.append(raw_data[j])
+        y_val.append(seg_data[j])
+    for k in rand_indices[num_val:num_test]:
+        x_test.append(raw_data[k])
+        y_test.append(seg_data[k])
+
+    x_train = np.array(x_train).reshape((len(x_train), height, width, 1))
+    x_val = np.array(x_val).reshape((len(x_val), height, width, 1))
+    x_test = np.array(x_test).reshape((len(x_test), height, width, 1))
+    y_train = np.array(y_train)
+    y_val = np.array(y_val)
+    y_test = np.array(y_test)
+
+    print(x_train.shape)
+    print(x_test.shape)
+    print(x_val.shape)
+    print(y_train.shape)
+    print(y_test.shape)
+    print(y_val.shape)
+
+    return x_train, x_val, x_test, y_train, y_val, y_test
 
 def one_hot_encode(L, class_labels):
     """
@@ -24,12 +80,6 @@ def one_hot_encode(L, class_labels):
     except Exception as e:
         print(e)
 
-def uncode_one_hot(npy_file):
-    """
-    .npy file -> JPEG
-    """
-    pass
-
 def show_images(images, cols = 1, titles = None):
     """Display a list of images in a single figure with matplotlib.
     
@@ -43,7 +93,7 @@ def show_images(images, cols = 1, titles = None):
     titles: List of titles corresponding to each image. Must have
             the same length as titles.
     """
-    assert((titles is None)or (len(images) == len(titles)))
+    assert((titles is None) or (len(images) == len(titles)))
     n_images = len(images)
     if titles is None: titles = ['Image (%d)' % i for i in range(1,n_images + 1)]
     fig = plt.figure()
@@ -121,7 +171,7 @@ def pad_processed_data():
     pass
     
 
-def load_all_data(processed_data_dir=None, height=512, width=512):
+def load_all_data(processed_data_dir, height=512, width=512, encode_segs=True):
     """
     Load both the processed, unlabeled data as well as corresponding labeled segmentation data (if it
     exists) of all scans in a directory. Can draw from an arbitrary number of scan/segmentation pairs. 
@@ -133,13 +183,15 @@ def load_all_data(processed_data_dir=None, height=512, width=512):
             expected to resemble e.g. "trial8_30_fs".
         height (int): Height in pixels to which scan cross sections get resized.
         width (int): Width in pixels to which scan cross sections get resized.
+        encode_segs (boolean): Flag to determine whether or not to one-hot-encode label arrays.
             
     Returns:
         tuple: Tuple of lists of numpy arrays where the first list contains the raw data, is of length 
             N (total number of cross sections from all scans), and each element is a numpy array of shape
             (height, width). The second list contains the segmented data and is of length N and
             contains numpy arrays of shape (height, width, C) where C is the number of
-            pixel classes. By default C is 9. Class dimension is one-hot-encoded.
+            pixel classes. By default C is 9. If one-hot-encoding disabled, second array shape is 
+            (height, width).
     """
     raw_images = []
     segmentations = []    
@@ -153,13 +205,13 @@ def load_all_data(processed_data_dir=None, height=512, width=512):
     print(scan_paths)
     
     for scan_path in scan_paths:
-        scan_data_raw, scan_data_labels = load_data(scan_path, height, width)
+        scan_data_raw, scan_data_labels = load_data(scan_path, height, width, encode_segs)
         raw_images.extend(scan_data_raw)
         segmentations.extend(scan_data_labels)
     
     return raw_images, segmentations
 
-def load_data(processed_data_dir=None, height=512, width=512):
+def load_data(processed_data_dir, height=512, width=512, encode_segs=True):
     """
     Load both the processed, unlabeled data as well as corresponding labeled segmentation data (if it
     exists) of a single scan. 
@@ -170,13 +222,15 @@ def load_data(processed_data_dir=None, height=512, width=512):
             scan data, not any other files.
         height (int): Height in pixels to which scan cross sections get resized.
         width (int): Width in pixels to which scan cross sections get resized.
+        encode_segs (boolean): Flag to determine whether or not to one-hot-encode label arrays.
     
     Returns:
         tuple: Tuple of lists of numpy arrays where the first list contains the raw data, is of length 
-            N (total number of cross sections from the scan), and each element is a numpy array of shape
+            N (total number of cross sections from all scans), and each element is a numpy array of shape
             (height, width). The second list contains the segmented data and is of length N and
             contains numpy arrays of shape (height, width, C) where C is the number of
-            pixel classes. By default C is 9. Class dimension is one-hot-encoded.
+            pixel classes. By default C is 9. If one-hot-encoding disabled, second array shape is 
+            (height, width).
     
     """
     default_raw_pixel_classes = [0, 7, 8, 9, 45, 51, 52, 53, 68]
@@ -206,8 +260,9 @@ def load_data(processed_data_dir=None, height=512, width=512):
         if 'raw' in file:
             raw_images.append(img)
         elif 'label' in file:
-            encoded_img = one_hot_encode(img, default_raw_pixel_classes)
-            segmentations.append(encoded_img)
+            if encode_segs:
+                img = one_hot_encode(img, default_raw_pixel_classes)
+            segmentations.append(img)
     
     return raw_images, segmentations
             
@@ -221,9 +276,6 @@ def save_seg_as_nifti(seg, target_dir, nii_data_dir):
     new_nifti = nib.nifti1.Nifti1Image(seg, None, header=new_header)
     nib.save(new_nifti, '/home/jessica/Documents/hart-seg-ml/predictedsegs/trial15_60_w1_first/trial15_60_w1_first_pred_seg.nii')
 
-def load_model():
-    pass
-
 ##################################
 # PREDICTION FUNCTIONS
 ##################################
@@ -235,7 +287,7 @@ def predict_cross_sec(x, model=None, sess=None):
     pred_classes = np.argmax(prediction[0], axis=2)
     return pred_classes
 
-def predict_whole_seg(X, model=None, sess=None):
+def predict_whole_seg(X, model=None, sess=None, crop=False, orig_dims=None):
     '''
     Todo: Crop the predictions. 
     '''
@@ -273,8 +325,13 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model=None, sess=No
 # OTHER FUNCTIONS
 ##################################
 
-def save_model(models_dir, model_name):
-    saver = tf.train.Saver()
+def save_model(models_dir, model_name, saver):
     saver.save(sess, os.path.join(os.path.join(models_dir, model_name), model_name))
 
-
+def load_model(models_dir, model_name, saver, sess):
+    model_path = os.path.join(models_dir, model_name)
+    meta_file = model_name + ".meta"
+    meta_file_path = os.path.join(model_path, meta_file)
+    saver = tf.train.import_meta_graph(meta_file_path)
+    saver.restore(sess, tf.train.latest_checkpoint(model_path))
+    
