@@ -14,6 +14,9 @@ from skimage import exposure
 from skimage.io import imread, imsave
 import Unet
 
+# TODO: update various package imports, see what can be removed/replaced.
+# TODO: add documentation to functions, especially wrt details of inputs/outputs.
+
 ##################################
 # DATA FUNCTIONS
 ##################################
@@ -62,6 +65,8 @@ def split_data(raw_data, seg_data, percent_train, percent_val, percent_test):
 
 def one_hot_encode(L, class_labels):
     """
+    TODO: ensure encoding remains consistent
+
     2D array (image) of segmentation labels -> .npy
     # One Hot Encode the label 2d array -> .npy files with dim (h, w, len(class_labels))
     # num classes will be 8? but currently dynamically allocated based on num colors in all scans.
@@ -132,6 +137,8 @@ def check_one_hot(encoded_img):
     return np.all(np.sum(encoded_img, axis=2) == 1.)
 
 def batch_img_resize(images, h = 256, w = 256):
+    # TODO: Determine if this function can be removed or rewritten with
+    # other cropping function
     images_resized = np.zeros([0, newHeight, newWidth], dtype=np.uint8)
     for image in range(images.shape[0]):
         temp = imresize(images[image], [h, w], 'nearest')
@@ -166,9 +173,6 @@ def pad_image(orig_img, height, width):
     padded_img = np.pad(orig_img, pad_width=pad_dims, mode='constant', constant_values=0)
     
     return padded_img
-
-def pad_processed_data():
-    pass
     
 
 def load_all_data(processed_data_dir, height=512, width=512, encode_segs=True):
@@ -269,7 +273,7 @@ def load_data(processed_data_dir, height=512, width=512, encode_segs=True):
 
 def save_seg_as_nifti(seg, target_dir, nii_data_dir):
     '''
-    TODO: Fix to be compatible with predict_all_segs function, arbitrary scans.
+    TODO: Refactor and update with improved version from U_Net_Muscle.ipynb.
     '''
     original_vol = nib.load(os.path.join(nii_data_dir, 'trial15_60_w1_volume_TRANS.nii'))
     new_header = original_vol.header.copy()
@@ -280,16 +284,16 @@ def save_seg_as_nifti(seg, target_dir, nii_data_dir):
 # PREDICTION FUNCTIONS
 ##################################
 
-def predict_cross_sec(x, model=None, sess=None):
-    if model==None:
-        load_model()
+# TODO: Make resulting prediction label consistent with original label colorings.
+
+def predict_cross_sec(x, model, sess):
     prediction = model.predict(sess, x)
     pred_classes = np.argmax(prediction[0], axis=2)
     return pred_classes
 
-def predict_whole_seg(X, model=None, sess=None, crop=False, orig_dims=None):
+def predict_whole_seg(X, model, sess, crop=False, orig_dims=None):
     '''
-    Todo: Crop the predictions. 
+    Todo: Implement optional cropping with provided orig_dims
     '''
     segmented = np.empty(X.shape[:3])
     num_sections = X.shape[0]
@@ -299,7 +303,7 @@ def predict_whole_seg(X, model=None, sess=None, crop=False, orig_dims=None):
         print(i, end=', ')
     return segmented
 
-def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model=None, sess=None):
+def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
     """
     Produce segmentations of arbitrary number of preprocessed scans and save them all as Nifti
     files. Each preprocessed scan should be in separate subfolder. Names of folders containing 
@@ -326,9 +330,11 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model=None, sess=No
 ##################################
 
 def save_model(models_dir, model_name, saver):
+    # TODO: Fix pathing errors
     saver.save(sess, os.path.join(os.path.join(models_dir, model_name), model_name))
 
 def load_model(models_dir, model_name, saver, sess):
+    # TODO: Fix pathing errors
     model_path = os.path.join(models_dir, model_name)
     meta_file = model_name + ".meta"
     meta_file_path = os.path.join(model_path, meta_file)
