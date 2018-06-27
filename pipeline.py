@@ -145,8 +145,8 @@ def batch_img_resize(images, h = 256, w = 256):
         images_resized = np.append(images_resized, np.expand_dims(temp, axis=0), axis=0)
     return images_resized
 
-def crop_cross_sec(cross_sec, height, width):
-    orig_height, orig_width = cross_sec.shape
+def crop_image(img, height, width):
+    orig_height, orig_width = img.shape
     height_remove = (orig_height - height) / 2
     width_remove = (orig_width - width) / 2
     ht_idx_1 = floor(height_remove)
@@ -154,7 +154,7 @@ def crop_cross_sec(cross_sec, height, width):
     wd_idx_1 = floor(width_remove)
     wd_idx_2 = ceil(width_remove)
     
-    cropped = cross_sec[ht_idx_1:orig_height-ht_idx_2, wd_idx_1:orig_width-wd_idx_2]
+    cropped = img[ht_idx_1:orig_height-ht_idx_2, wd_idx_1:orig_width-wd_idx_2]
     
     return cropped
 
@@ -286,19 +286,19 @@ def save_seg_as_nifti(seg, target_dir, nii_data_dir):
 
 # TODO: Make resulting prediction label consistent with original label colorings.
 
-def predict_cross_sec(x, model, sess):
-    prediction = model.predict(sess, x)
+def predict_image(img, model, sess):
+    prediction = model.predict(sess, img)
     pred_classes = np.argmax(prediction[0], axis=2)
     return pred_classes
 
-def predict_whole_seg(X, model, sess, crop=False, orig_dims=None):
+def predict_whole_seg(seg_img_arr, model, sess, crop=False, orig_dims=None):
     '''
     Todo: Implement optional cropping with provided orig_dims
     '''
-    segmented = np.empty(X.shape[:3])
-    num_sections = X.shape[0]
+    segmented = np.empty(seg_img_arr.shape[:3])
+    num_sections = seg_img_arr.shape[0]
     for i in range(num_sections):
-        pred = predict_cross_sec(X[i:i+1], model, sess)
+        pred = predict_image(seg_img_arr[i:i+1], model, sess)
         segmented[i] = pred
         print(i, end=', ')
     return segmented
