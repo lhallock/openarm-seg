@@ -16,6 +16,7 @@ import Unet
 
 # TODO: update various package imports, see what can be removed/replaced.
 # TODO: add documentation to functions, especially wrt details of inputs/outputs.
+# TODO: use logging module instead of current print statements.
 
 ##################################
 # DATA FUNCTIONS
@@ -317,6 +318,7 @@ def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None):
 		else:
 			segmented[i] = pred
 		print(i, end=', ')
+	print("")
 	return segmented
 
 def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
@@ -371,10 +373,9 @@ def save_model(models_dir, model_name, saver, sess):
 	saver.save(sess, os.path.join(os.path.join(models_dir, model_name), model_name))
 
 def load_model(models_dir, model_name, saver, sess):
-	# TODO: Fix pathing errors
 	model_path = os.path.join(models_dir, model_name)
 	meta_file = model_name + ".meta"
 	meta_file_path = os.path.join(model_path, meta_file)
 	saver = tf.train.import_meta_graph(meta_file_path)
-	saver.restore(sess, os.path.join(model_path, model_name)) # Bizarre, but seems to work.
+	saver.restore(sess, os.path.join(model_path, model_name))
 	
