@@ -15,7 +15,11 @@ class FCN(object):
         self.weight_decay = weight_decay
         self.learning_rate = learning_rate
         self.dropout = dropout
-        self.x_test = None
+
+        self.x_train = tf.placeholder(tf.float32, [None, h, w, 1])
+        self.y_train = tf.placeholder(tf.float32, [None, h, w, 2])
+        self.x_test = tf.placeholder(tf.float32, [None, h, w, 1])
+        self.y_test = tf.placeholder(tf.float32, [None, h, w, 2])
 
         self.output = self.fcn(self.x_train, mean, keep_prob=self.dropout)
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.output, labels=self.y_train))
@@ -83,7 +87,7 @@ class FCN(object):
         b8 = utils.bias_variable([self.NUM_CLASSES], name="b8")
         conv8 = utils.conv2d_basic(relu_dropout7, w8, b8)
 
-        # upscale image back to orgingal size
+        # upscale image back to original size
 
         deconv_shape1 = pool_4.get_shape()  # Set the output shape for the the transpose convolution output take only the depth since the transpose convolution will have to have the same depth for output
         W_t1 = utils.weight_variable([4, 4, deconv_shape1[3].value, self.NUM_CLASSES],
