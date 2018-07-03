@@ -67,7 +67,7 @@ class FCN(object):
 
         pool_5 = pool_(conv_5_2)
 
-        # after pool 5, 4096 depth and start decoding, 1x1 convolution and compress depth to num of classes
+        # 1x1 convolution and compress depth to num of classes
 
         w6 = utils.weight_variable([7, 7, 512, 4096], name="W6")
         b6 = utils.bias_variable([4096], name="b6")
@@ -89,13 +89,15 @@ class FCN(object):
 
         # upscale image back to original size
 
-        deconv_shape1 = pool_4.get_shape()  # Set the output shape for the the transpose convolution output take only the depth since the transpose convolution will have to have the same depth for output
+        deconv_shape1 = pool_4.get_shape()
         W_t1 = utils.weight_variable([4, 4, deconv_shape1[3].value, self.NUM_CLASSES],
-                                     name="W_t1")  # Deconvolution/transpose in size 4X4 note that the output shape is of  depth NUM_OF_CLASSES this is not necessary in will need to be fixed if you only have 2 catagories
+                                     name="W_t1")
         b_t1 = utils.bias_variable([deconv_shape1[3].value], name="b_t1")
         conv_t1 = utils.conv2d_transpose_strided(conv8, W_t1, b_t1, output_shape=tf.shape(
-            pool_4))  # Use strided convolution to double layer size (depth is the depth of pool4 for the later element wise addition
+            pool_4))
         fuse_1 = tf.add(conv_t1, pool_4, name="fuse_1")
+
+        # upscale and fuse with pool4, pool3 to create fcn-8s
 
         deconv_shape2 = pool_3.get_shape()
         W_t2 = utils.weight_variable([4, 4, deconv_shape2[3].value, deconv_shape1[3].value], name="W_t2")
@@ -103,7 +105,7 @@ class FCN(object):
         conv_t2 = utils.conv2d_transpose_strided(fuse_1, W_t2, b_t2, output_shape=tf.shape(pool_3))
         fuse_2 = tf.add(conv_t2, pool_3, name="fuse_2")
 
-        shape = tf.shape(self.label_dim) # change to input dimensions
+        shape = tf.shape(self.label_dim)
         W_t3 = utils.weight_variable([16, 16, self.NUM_CLASSES, deconv_shape2[3].value], name="W_t3")
         b_t3 = utils.bias_variable([self.NUM_CLASSES], name="b_t3")
 
