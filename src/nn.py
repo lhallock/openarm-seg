@@ -223,7 +223,6 @@ def train(sess, model, x_train, y_train, x_test, y_test, epochs, batch_size, sum
         val_print(i, j, np.mean(losses), acc, stop - start)
         print()
 
-        # Save model every 10 epochs
-        if i > 0 and (i % 10 == 0): 
+ 
 
         
