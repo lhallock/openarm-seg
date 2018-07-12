@@ -22,7 +22,8 @@ def conv(x, filter_size, num_filters, stride, weight_decay, name, padding='SAME'
     # Create lambda function for the convolution
     convolve = lambda x, W: tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding=padding)
 
-    with tf.variable_scope(name):
+    
+    with tf.variable_scope(name, reuse=True):
         # Create tf variables for the weights and biases of the conv layer
         regularizer = tf.contrib.layers.l2_regularizer(weight_decay)
         weights = tf.get_variable('W',
@@ -31,6 +32,7 @@ def conv(x, filter_size, num_filters, stride, weight_decay, name, padding='SAME'
                                   trainable=trainable,
                                   regularizer=regularizer,
                                   collections=['variables'])
+        print(tf.get_collection('variables'))
         biases = tf.get_variable('b', shape=[num_filters], trainable=trainable, initializer=tf.zeros_initializer())
 
         if groups == 1:
