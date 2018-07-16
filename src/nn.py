@@ -161,7 +161,21 @@ def val_print(i, j, loss, acc, time):
           "   ", end="\r")
 
     
-def train(sess, model, saver, x_train, y_train, x_test, y_test, epochs, batch_size, summary_writer = 0, train_validation = 5, start_step = 0, models_dir = None, model_name = None):
+def train(sess,
+          model,
+          saver,
+          x_train,
+          y_train,
+          x_test,
+          y_test,
+          epochs,
+          batch_size,
+          auto_save_interval = 5,
+          summary_writer = 0,
+          train_validation = 5,
+          start_step = 0,
+          models_dir = None,
+          model_name = None):
     '''
     Main function for training neural network model. 
     
@@ -223,6 +237,6 @@ def train(sess, model, saver, x_train, y_train, x_test, y_test, epochs, batch_si
         val_print(i, j, np.mean(losses), acc, stop - start)
         print()
         
-        if i % 5 == 0 and i > 0:
+        if i % auto_save_interval == 0 and i > 0:
             if models_dir and model_name:
                 saver.save(sess, os.path.join(os.path.join(models_dir, model_name), model_name))
