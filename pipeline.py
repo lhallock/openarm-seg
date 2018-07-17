@@ -86,6 +86,25 @@ def one_hot_encode(L, class_labels):
     except Exception as e:
         logging.debug(e)
 
+def convert_label_vals(seg):
+    """
+    Converts the intensity values of a predicted segmentation to the label values of the original segmentations.
+    That is, it converts label values in [0, 1, 2, 3, 4, 5, 6, 7, 8] to [0, 7, 8, 9, 45, 51, 52, 53, 68]. This is 
+    done so that predicted segmentations can be directly compared with ground truth.
+
+    Args:
+        seg (numpy.ndarray): Numpy array of shape (height, width). Usually (512, 512).
+
+    Returns:
+        numpy.ndarray: Numpy array of shape (height, width), the same as the input, where the label values have
+            been changed to match ground truth segmentation convention.
+    """
+    orig_label_vals = [0, 7, 8, 9, 45, 51, 52, 53, 68]
+    converted = [orig_label_vals[i] for i in seg.flatten()]
+    converted_arr = np.array(converted)
+    converted_arr = converted_arr.reshape(seg.shape)
+    return converted_arr
+
 def show_images(images, cols = 1, titles = None):
     """Display a list of images in a single figure with matplotlib.
     
@@ -255,7 +274,7 @@ def load_data(processed_data_dir, height=512, width=512, encode_segs=True):
     scan_files = sorted(scan_files)
     
     for file in scan_files:
-        # logging.debug(file)
+        logging.debug(file)
         if 'label' in file:
             img = imread(os.path.join(processed_data_dir, file), flatten=True)
         else:
@@ -313,6 +332,9 @@ def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None):
     num_sections = img_arr.shape[0]
     for i in range(num_sections):
         pred = predict_image(img_arr[i:i+1], model, sess)
+        # print("unique vals before convert: ", np.unique(pred))
+        pred = convert_label_vals(pred)
+        # print("unique vals after convert: ", np.unique(pred))
         if crop and orig_dims:
             segmented[i] = crop_image(pred, orig_dims[0], orig_dims[1])
         else:
@@ -353,11 +375,11 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
 
         if orig_nifti_name is not None:
             raw_scan_data, ignore = load_data(scan_path, encode_segs=False)
-            logging.debug(scan_path, ":", len(raw_scan_data))
+            logging.debug("%s: %d", scan_path, len(raw_scan_data))
             raw_scan_data_arr = np.asarray(raw_scan_data)
 
             pred_seg = predict_whole_seg(raw_scan_data_arr, model, sess)
-            save_name = trial_name + "_pred_seg.nii"
+            save_name = trial_name + '_pred_seg.nii'
 
             save_arr_as_nifti(pred_seg, orig_nifti_name, save_name, nii_data_dir, save_dir)
         
@@ -370,7 +392,7 @@ def save_model(models_dir, model_name, saver, sess):
 
 def load_model(models_dir, model_name, saver, sess):
     model_path = os.path.join(models_dir, model_name)
-    meta_file = model_name + ".meta"
+    meta_file = model_name + '.meta'
     meta_file_path = os.path.join(model_path, meta_file)
     saver = tf.train.import_meta_graph(meta_file_path)
     saver.restore(sess, os.path.join(model_path, model_name))
