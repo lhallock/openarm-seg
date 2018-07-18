@@ -25,23 +25,26 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from tensorflow.python.client import device_lib
 local_device_protos = device_lib.list_local_devices()
-# logging.debug(local_device_protos)
 
 #### DEFAULT DIRECTORY SETUP ####
 
-default_models_dir = '/Users/nozik/Documents/HARTresearch/models/u-net_v1-0'
-default_training_data_dir = "/Users/nozik/Documents/HARTresearch/pipeline_demo"
+default_models_dir = '/media/jessica/Storage/models/u-net_v1-0'
+default_training_data_dir = "/media/jessica/Storage/pipelinetest/training_data"
 
 #################################
 
+logger = logging.getLogger('__name__')
+stream = logging.StreamHandler(stream=sys.stdout)
+stream.setFormatter(logging.Formatter("%(levelname)-8s %(message)s"))
+logger.handlers = []
+logger.addHandler(stream)
+logger.setLevel(logging.INFO)
 
 def main():
     args = get_args()
 
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.INFO)
+        logger.setLevel(level=logging.DEBUG)
 
     train_model(args.models_dir,
                 args.training_data_dir,
@@ -67,7 +70,7 @@ def get_args():
     return parser.parse_args()
 
 def train_model(models_dir, training_data_dir, num_epochs, batch_size, auto_save_interval, max_to_keep, ckpt_n_hours, model_name):
-    logging.info("Fetching data.")
+    logger.info("Fetching data.")
 
     raw_data_lst, seg_data_lst = pipeline.load_all_data(training_data_dir)
 
@@ -81,7 +84,7 @@ def train_model(models_dir, training_data_dir, num_epochs, batch_size, auto_save
                                                                          val_percent,
                                                                          test_percent)
 
-    logging.info("Initializing model.")
+    logger.info("Initializing model.")
 
     mean = 0
     weight_decay = 1e-6
@@ -93,15 +96,15 @@ def train_model(models_dir, training_data_dir, num_epochs, batch_size, auto_save
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver(max_to_keep=max_to_keep, keep_checkpoint_every_n_hours=ckpt_n_hours)
 
-    logging.info("Training model. Details:")
-    logging.info(" * Model name: %s", model_name)
-    logging.info(" * Epochs: %d", num_epochs)
-    logging.info(" * Batch size: %d", batch_size)
-    logging.info(" * Max checkpoints to keep: %d", max_to_keep)
-    logging.info(" * Keeping checkpoint every n hours: %d", ckpt_n_hours)
-    logging.info(" * Keeping checkpoint every n epochs: %d", auto_save_interval)
-    logging.info(" * Model directory save destination: %s", models_dir)
-    logging.info(" * Training data directory: %s", training_data_dir)
+    logger.info("Training model. Details:")
+    logger.info(" * Model name: %s", model_name)
+    logger.info(" * Epochs: %d", num_epochs)
+    logger.info(" * Batch size: %d", batch_size)
+    logger.info(" * Max checkpoints to keep: %d", max_to_keep)
+    logger.info(" * Keeping checkpoint every n hours: %d", ckpt_n_hours)
+    logger.info(" * Keeping checkpoint every n epochs: %d", auto_save_interval)
+    logger.info(" * Model directory save destination: %s", models_dir)
+    logger.info(" * Training data directory: %s", training_data_dir)
 
     nn.train(sess, 
              model,
@@ -116,7 +119,7 @@ def train_model(models_dir, training_data_dir, num_epochs, batch_size, auto_save
              models_dir = models_dir,
              model_name = model_name)
 
-    logging.info("%s", nn.validate(sess, model, x_test, y_test))
+    logger.info("%s", nn.validate(sess, model, x_test, y_test))
 
     pipeline.save_model(models_dir, model_name, saver, sess)
 

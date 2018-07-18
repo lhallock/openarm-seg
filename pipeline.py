@@ -14,6 +14,13 @@ from skimage import exposure
 from skimage.io import imread, imsave
 import Unet
 import logging
+import sys
+
+
+# Logging setup
+
+logger = logging.getLogger('__name__')
+logger.setLevel(logging.DEBUG)
 
 # TODO: update various package imports, see what can be removed/replaced.
 # TODO: add documentation to functions, especially wrt details of inputs/outputs.
@@ -55,12 +62,12 @@ def split_data(raw_data, seg_data, percent_train, percent_val, percent_test):
     y_val = np.array(y_val)
     y_test = np.array(y_test)
 
-    logging.debug(x_train.shape)
-    logging.debug(x_test.shape)
-    logging.debug(x_val.shape)
-    logging.debug(y_train.shape)
-    logging.debug(y_test.shape)
-    logging.debug(y_val.shape)
+    logger.debug(x_train.shape)
+    logger.debug(x_test.shape)
+    logger.debug(x_val.shape)
+    logger.debug(y_train.shape)
+    logger.debug(y_test.shape)
+    logger.debug(y_val.shape)
 
     return x_train, x_val, x_test, y_train, y_val, y_test
 
@@ -84,7 +91,7 @@ def one_hot_encode(L, class_labels):
                 Lhot[i,j,L[i,j]] = 1
         return Lhot  # Should be shape (482, 395, 9)
     except Exception as e:
-        logging.debug(e)
+        logger.debug(e)
 
 def convert_label_vals(seg):
     """
@@ -153,7 +160,7 @@ def get_raw_pixel_classes(trial_name, raw_nifti_dir):
     return class_labels
     
 def check_one_hot(encoded_img):
-    logging.debug(encoded_img.shape)
+    logger.debug(encoded_img.shape)
     return np.all(np.sum(encoded_img, axis=2) == 1.)
 
 def batch_img_resize(images, h = 256, w = 256):
@@ -226,7 +233,7 @@ def load_all_data(processed_data_dir, height=512, width=512, encode_segs=True):
             scan_folder_path = os.path.join(processed_data_dir, folder)
             scan_paths.append(scan_folder_path)
     
-    logging.debug("%s", scan_paths)
+    logger.debug("%s", scan_paths)
     
     for scan_path in scan_paths:
         scan_data_raw, scan_data_labels = load_data(scan_path, height, width, encode_segs)
@@ -262,9 +269,9 @@ def load_data(processed_data_dir, height=512, width=512, encode_segs=True):
     segmentations = []    
     scan_files = []
     
-    logging.debug("====")
-    logging.debug(processed_data_dir)
-    logging.debug("====")
+    logger.debug("====")
+    logger.debug(processed_data_dir)
+    logger.debug("====")
     
     for item in os.listdir(processed_data_dir):
         item_path = os.path.join(processed_data_dir, item)
@@ -274,7 +281,7 @@ def load_data(processed_data_dir, height=512, width=512, encode_segs=True):
     scan_files = sorted(scan_files)
     
     for file in scan_files:
-        logging.debug(file)
+        # logger.debug(file)
         if 'label' in file:
             img = imread(os.path.join(processed_data_dir, file), flatten=True)
         else:
@@ -339,7 +346,6 @@ def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None):
             segmented[i] = crop_image(pred, orig_dims[0], orig_dims[1])
         else:
             segmented[i] = pred
-        logging.debug("%d", i)
     return segmented
 
 def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
@@ -352,15 +358,15 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
     trials = []
     
     for folder in os.listdir(to_segment_dir):
-        logging.debug(folder)
+        logger.debug(folder)
         if folder.startswith('trial'):
             scan_path = os.path.join(to_segment_dir, folder)
             scan_paths.append(scan_path)
             trials.append(folder)
     
-    logging.debug("")
-    logging.debug("trials found: %s", trials)
-    logging.debug("====")
+    logger.debug("")
+    logger.debug("trials found: %s", trials)
+    logger.debug("====")
     
     for i in range(len(scan_paths)):
 
@@ -369,15 +375,15 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
 
         orig_nifti_name = get_orig_nifti_name(trial_name, nii_data_dir)
 
-        logging.debug("trial_name = %s", trial_name)
+        logger.debug("trial_name = %s", trial_name)
 
-        logging.debug("orig_nifti_name = %s", orig_nifti_name)
+        logger.debug("orig_nifti_name = %s", orig_nifti_name)
 
         if orig_nifti_name is not None:
             raw_scan_data, ignore = load_data(scan_path, encode_segs=False)
-            logging.debug("%s: %d", scan_path, len(raw_scan_data))
+            logger.debug("%s: %d", scan_path, len(raw_scan_data))
             raw_scan_data_arr = np.asarray(raw_scan_data)
-
+            logger.debug("Predicting segmentation for %s", trial_name)
             pred_seg = predict_whole_seg(raw_scan_data_arr, model, sess)
             save_name = trial_name + '_pred_seg.nii'
 
