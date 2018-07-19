@@ -309,17 +309,32 @@ def save_arr_as_nifti(arr, orig_nifti_name, save_name, nii_data_dir, save_dir):
     nib.save(new_nifti, save_path)
 
 
-def get_orig_nifti_name(trial_name, nii_data_dir):
+def get_orig_nifti_name(trial_name, nii_data_dir, identifier):
     for file_name in os.listdir(nii_data_dir):
         if trial_name in file_name:
             file_path = os.path.join(nii_data_dir, file_name)
-            if 'volume' in file_name and os.path.isfile(file_path):
+            if identifier in file_name and os.path.isfile(file_path):
                 return file_name
     return None
 
-def check_nifti_equal(first_nii, second_nii):
-    pass
+def check_nifti_equal(first_nii, second_nii, nii_data_dir):
+    """
+    Args:
+        first_nii (str): Filename of first .nii file, including extension.
+        second_nii (str): Filename of second .nii file, including extension.
+        nii_data_dir (str): Path to directory containing first_nii and second_nii.
 
+    Returns:
+        boolean: Returns true if all voxel values of first_nii and second_nii are equal. The dimensions of the scans
+            must be the same in order to be considered equal.
+    """
+    first_nii_path = os.path.join(nii_data_dir, first_nii)
+    second_nii_path = os.path.join(nii_data_dir, second_nii)
+    first_nii_full = nib.load(first_nii_path)
+    second_nii_full = nib.load(second_nii_path)
+    first_nii_data = first_nii_full.get_fdata()
+    second_nii_data = second_nii_full.get_fdata()
+    return np.array_equal(first_nii_data, second_nii_data)
 
 ##################################
 # PREDICTION FUNCTIONS
@@ -373,7 +388,7 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
         scan_path = scan_paths[i]
         trial_name = trials[i]
 
-        orig_nifti_name = get_orig_nifti_name(trial_name, nii_data_dir)
+        orig_nifti_name = get_orig_nifti_name(trial_name, nii_data_dir, 'volume')
 
         logger.debug("trial_name = %s", trial_name)
 
