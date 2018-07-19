@@ -202,9 +202,10 @@ def train(sess,
             # Shuffle Data
             temp_indicies = indicies[j*batch_size:(j+1)*batch_size]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
-            loss, loss_summary = model.fit_batch(sess,x_train_temp, y_train_temp)
+            merge = tf.summary.merge_all()
+            summary, loss, loss_summary = model.fit_batch(merge,sess,x_train_temp, y_train_temp)
             if summary_writer:
-                summary_writer.add_summary(loss_summary, step)
+                summary_writer.add_summary(summary, step)
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)
@@ -218,7 +219,8 @@ def train(sess,
         if x_train.shape[0] % batch_size != 0:
             temp_indicies = indicies[(j+1)*batch_size:]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
-            loss, loss_summary = model.fit_batch(sess,x_train_temp, y_train_temp)
+            merge = tf.summary.merge_all()
+            summary, loss, loss_summary = model.fit_batch(merge,sess,x_train_temp, y_train_temp)
             if summary_writer:
                 summary_writer.add_summary(loss_summary, step)
             if len(losses) == 20:
@@ -227,13 +229,19 @@ def train(sess,
             stop = timeit.default_timer()
             train_print(i, j, np.mean(losses), j*batch_size, x_train.shape[0], stop - start)
             step = step + 1
+            
         stop = timeit.default_timer()
+        
         acc = validate(sess, model, x_test, y_test)
-        summary = tf.Summary()
-        for k in range(len(acc)):
-            summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
-        if summary_writer:    
-            summary_writer.add_summary(summary, step)
+        
+# removed the tensorboard summary for validation 
+#         summary = tf.Summary()
+        
+#         for k in range(len(acc)):
+#             summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
+#         if summary_writer:    
+#             summary_writer.add_summary(summary, step)
+            
         val_print(i, j, np.mean(losses), acc, stop - start)
         print()
         

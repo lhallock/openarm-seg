@@ -403,3 +403,5 @@ def load_model(models_dir, model_name, saver, sess):
     saver = tf.train.import_meta_graph(meta_file_path)
     saver.restore(sess, os.path.join(model_path, model_name))
     
+    
+    

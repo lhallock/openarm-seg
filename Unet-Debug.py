@@ -29,9 +29,9 @@ class Unet(object):
 
         
     # Gradient Descent on mini-batch
-    def fit_batch(self, sess, x_train, y_train):
-        _, loss, loss_summary = sess.run((self.opt, self.loss, self.loss_summary), feed_dict={self.x_train: x_train, self.y_train: y_train})
-        return loss, loss_summary
+    def fit_batch(self, merge, sess, x_train, y_train):
+        summary, _, loss, loss_summary = sess.run((merge, self.opt, self.loss, self.loss_summary), feed_dict={self.x_train: x_train, self.y_train: y_train})
+        return summary, loss, loss_summary
     
     def predict(self, sess, x):
         prediction = sess.run((self.pred), feed_dict={self.x_test: x})
