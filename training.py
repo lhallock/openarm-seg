@@ -21,17 +21,10 @@ import pipeline
 import Unet
 import logging
 import argparse
+import configparser
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-from tensorflow.python.client import device_lib
-local_device_protos = device_lib.list_local_devices()
-
-#### DEFAULT DIRECTORY SETUP ####
-
-default_models_dir = '/media/jessica/Storage/models/u-net_v1-0'
-default_training_data_dir = "/media/jessica/Storage/pipelinetest/training_data"
-
-#################################
+# from tensorflow.python.client import device_lib
+# local_device_protos = device_lib.list_local_devices()
 
 logger = logging.getLogger('__name__')
 stream = logging.StreamHandler(stream=sys.stdout)
@@ -40,8 +33,24 @@ logger.handlers = []
 logger.addHandler(stream)
 logger.setLevel(logging.INFO)
 
+logging.getLogger('PIL').setLevel(logging.ERROR)
+logging.getLogger('PIL.Image').setLevel(logging.ERROR)
+logging.getLogger('tensorflow').setLevel(logging.ERROR)
+
 def main():
     args = get_args()
+
+    if args.default_models_dir or args.default_training_data_dir:
+        configure_default_dirs(args.default_models_dir, args.default_training_data_dir)
+        sys.exit()
+    elif not os.path.isfile('trainingconfig.ini'):
+        logger.info("No config file found, setting default directories.")
+        configure_default_dirs(None, None)
+
+    if not args.models_dir:
+        args.models_dir = get_default_dir('models_dir')
+    if not args.training_data_dir:
+        args.training_data_dir = get_default_dir('training_data_dir')
 
     if args.debug:
         logger.setLevel(level=logging.DEBUG)
@@ -55,19 +64,52 @@ def main():
                 args.ckpt_n_hours,
                 args.model_name)
 
+def configure_default_dirs(default_models_dir, default_training_data_dir):
+    config = configparser.ConfigParser()
+    if os.path.isfile('trainingconfig.ini'):
+        config.read('trainingconfig.ini')
+
+    if default_models_dir:
+        config['DEFAULT']['models_dir'] = default_models_dir
+    elif 'models_dir' not in config['DEFAULT']:
+        config['DEFAULT']['models_dir'] = '/media/jessica/Storage/models/u-net_v1-0'
+    logger.info("Default models_dir is now %s.", config['DEFAULT']['models_dir'])
+
+    if default_training_data_dir:
+        config['DEFAULT']['training_data_dir'] = default_training_data_dir
+    elif 'training_data_dir' not in config['DEFAULT']:
+        config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage/pipelinetest/training_data'
+    logger.info("Default training_data_dir is now %s.", config['DEFAULT']['training_data_dir'])
+
+    with open('trainingconfig.ini', 'w') as configfile:
+        config.write(configfile)
+
+
+def get_default_dir(directory):
+    config = configparser.ConfigParser()
+    config.read('trainingconfig.ini')
+    return config['DEFAULT'][directory]
+
 def get_args():
     parser = argparse.ArgumentParser(description='Train and save a model.')
-    parser.add_argument('model_name', action='store')
-    parser.add_argument('--models_dir', '-md', action='store', default=default_models_dir)
-    parser.add_argument('--training_data_dir', '-tdd', action='store', default=default_training_data_dir)
-    parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('model_name', action='store', nargs='?', default=None)
+    parser.add_argument('--models-dir', '-md', action='store')
+    parser.add_argument('--training_data_dir', '-td', action='store')
+    parser.add_argument('--default-models-dir', '-dm', action='store')
+    parser.add_argument('--default-training_data_dir', '-dt', action='store')
+    parser.add_argument('--debug', '-de', action='store_true')
     parser.add_argument('--epochs', '-e', action='store', type=int, default=50)
     parser.add_argument('--batch_size', action='store', type=int, default=1)
     parser.add_argument('--auto_save_interval', action='store', type=int, default=5)
     parser.add_argument('--max_ckpt_keep', action='store', type=int, default=1)
     parser.add_argument('--ckpt_n_hours', action='store', type=int, default=1)
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if not args.model_name and not (args.default_models_dir or args.default_training_data_dir):
+        parser.error("model_name is required when training a model.")
+
+    return args
 
 def train_model(models_dir, training_data_dir, num_epochs, batch_size, auto_save_interval, max_to_keep, ckpt_n_hours, model_name):
     logger.info("Fetching data.")
