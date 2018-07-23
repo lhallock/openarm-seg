@@ -3,6 +3,8 @@ from math import floor, ceil
 import numpy as np
 import tensorflow as tf
 import random
+import sys
+sys.path.append('src/')
 import nn
 import nibabel as nib
 from sklearn.metrics import confusion_matrix
@@ -14,8 +16,6 @@ from skimage import exposure
 from skimage.io import imread, imsave
 import Unet
 import logging
-import sys
-
 
 # Logging setup
 
@@ -314,6 +314,7 @@ def get_orig_nifti_name(trial_name, nii_data_dir, identifier):
         if trial_name in file_name:
             file_path = os.path.join(nii_data_dir, file_name)
             if identifier in file_name and os.path.isfile(file_path):
+                logger.debug("Found .nii at %s", file_path)
                 return file_name
     return None
 

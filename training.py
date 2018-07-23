@@ -40,29 +40,32 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 def main():
     args = get_args()
 
-    if args.default_models_dir or args.default_training_data_dir:
-        configure_default_dirs(args.default_models_dir, args.default_training_data_dir)
+    if not os.path.isfile('trainingconfig.ini'):
+        logger.info("No config file found, setting defaults.")
+        configure_defaults()
+        logger.info("Rerun file to train a model.")
         sys.exit()
-    elif not os.path.isfile('trainingconfig.ini'):
-        logger.info("No config file found, setting default directories.")
-        configure_default_dirs(None, None)
 
-    if not args.models_dir:
-        args.models_dir = get_default_dir('models_dir')
-    if not args.training_data_dir:
-        args.training_data_dir = get_default_dir('training_data_dir')
+    training_params = get_all_params()
 
     if args.debug:
         logger.setLevel(level=logging.DEBUG)
 
-    train_model(args.models_dir,
-                args.training_data_dir,
-                args.epochs,
-                args.batch_size,
-                args.auto_save_interval,
-                args.max_ckpt_keep,
-                args.ckpt_n_hours,
-                args.model_name)
+    train_model(training_params['models_dir'],
+                training_params['training_data_dir'],
+                int(training_params['epochs']),
+                int(training_params['batch_size']),
+                int(training_params['ckpt_n_epochs']),
+                int(training_params['max_to_keep']),
+                int(training_params['ckpt_n_hours']),
+                args.model_name,
+                int(training_params['train_percent']),
+                int(training_params['val_percent']),
+                int(training_params['test_percent']),
+                int(training_params['mean']),
+                float(training_params['weight_decay']),
+                float(training_params['learning_rate']),
+                float(training_params['dropout']))
 
 def configure_default_dirs(default_models_dir, default_training_data_dir):
     config = configparser.ConfigParser()
@@ -84,11 +87,38 @@ def configure_default_dirs(default_models_dir, default_training_data_dir):
     with open('trainingconfig.ini', 'w') as configfile:
         config.write(configfile)
 
+def configure_defaults():
+    config = configparser.ConfigParser()
+    config['DEFAULT']['models_dir'] = '/media/jessica/Storage/models/u-net_v1-0'
+    config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage/pipelinetest/training_data'
+    config['DEFAULT']['epochs'] = '50'
+    config['DEFAULT']['batch_size'] = '1'
+    config['DEFAULT']['train_percent'] = '60'
+    config['DEFAULT']['val_percent'] = '10' 
+    config['DEFAULT']['test_percent'] = '30'
+    config['DEFAULT']['mean'] = '0'
+    config['DEFAULT']['weight_decay'] = '1e-6'
+    config['DEFAULT']['learning_rate'] = '1e-4'
+    config['DEFAULT']['dropout'] = '0.5'
+    config['DEFAULT']['max_to_keep'] = '1'
+    config['DEFAULT']['ckpt_n_hours'] = '1'
+    config['DEFAULT']['ckpt_n_epochs'] = '5'
 
-def get_default_dir(directory):
+    with open('trainingconfig.ini', 'w') as configfile:
+        config.write(configfile)
+
+    for key in config['DEFAULT']:
+        logger.info("Set value %s to: %s", key, config['DEFAULT'][key])
+
+def get_parameter(param):
     config = configparser.ConfigParser()
     config.read('trainingconfig.ini')
-    return config['DEFAULT'][directory]
+    return config['DEFAULT'][param]
+
+def get_all_params():
+    config = configparser.ConfigParser()
+    config.read('trainingconfig.ini')
+    return dict(config.items('DEFAULT'))
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train and save a model.')
@@ -99,26 +129,34 @@ def get_args():
     parser.add_argument('--default-training_data_dir', '-dt', action='store')
     parser.add_argument('--debug', '-de', action='store_true')
     parser.add_argument('--epochs', '-e', action='store', type=int, default=50)
-    parser.add_argument('--batch_size', action='store', type=int, default=1)
-    parser.add_argument('--auto_save_interval', action='store', type=int, default=5)
-    parser.add_argument('--max_ckpt_keep', action='store', type=int, default=1)
-    parser.add_argument('--ckpt_n_hours', action='store', type=int, default=1)
 
     args = parser.parse_args()
 
-    if not args.model_name and not (args.default_models_dir or args.default_training_data_dir):
-        parser.error("model_name is required when training a model.")
+    if not args.model_name:
+        if os.path.isfile('trainingconfig.ini'):
+            parser.error("model_name is required when training a model.")
 
     return args
 
-def train_model(models_dir, training_data_dir, num_epochs, batch_size, auto_save_interval, max_to_keep, ckpt_n_hours, model_name):
+def train_model(models_dir,
+                training_data_dir,
+                num_epochs,
+                batch_size,
+                auto_save_interval,
+                max_to_keep,
+                ckpt_n_hours,
+                model_name,
+                train_percent,
+                val_percent,
+                test_percent,
+                mean,
+                weight_decay,
+                learning_rate,
+                dropout):
+
     logger.info("Fetching data.")
 
     raw_data_lst, seg_data_lst = pipeline.load_all_data(training_data_dir)
-
-    train_percent = 60
-    val_percent = 10
-    test_percent = 30
 
     x_train, x_val, x_test, y_train, y_val, y_test = pipeline.split_data(raw_data_lst,
                                                                          seg_data_lst,
@@ -128,13 +166,9 @@ def train_model(models_dir, training_data_dir, num_epochs, batch_size, auto_save
 
     logger.info("Initializing model.")
 
-    mean = 0
-    weight_decay = 1e-6
-    learning_rate = 1e-4
-
     tf.reset_default_graph()
     sess = tf.Session()
-    model = Unet.Unet(mean, weight_decay, learning_rate, dropout=0.5)
+    model = Unet.Unet(mean, weight_decay, learning_rate, dropout)
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver(max_to_keep=max_to_keep, keep_checkpoint_every_n_hours=ckpt_n_hours)
 
