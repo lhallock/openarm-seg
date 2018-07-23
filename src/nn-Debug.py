@@ -197,6 +197,7 @@ def train(sess,
         np.random.shuffle(indicies)
         # Start timer
         start = timeit.default_timer()
+        summary_writer = tf.summary.FileWriter("./logs/1/train/", sess.graph)
 
         for j in range(int(x_train.shape[0]/batch_size)):
             # Shuffle Data
@@ -204,8 +205,7 @@ def train(sess,
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
             merge = tf.summary.merge_all()
             summary, loss, loss_summary = model.fit_batch(merge,sess,x_train_temp, y_train_temp)
-            if summary_writer:
-                summary_writer.add_summary(summary, step)
+            summary_writer.add_summary(summary, step)
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)
@@ -221,8 +221,8 @@ def train(sess,
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
             merge = tf.summary.merge_all()
             summary, loss, loss_summary = model.fit_batch(merge,sess,x_train_temp, y_train_temp)
-            if summary_writer:
-                summary_writer.add_summary(loss_summary, step)
+#             if summary_writer:
+            summary_writer.add_summary(loss_summary, step)
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)
