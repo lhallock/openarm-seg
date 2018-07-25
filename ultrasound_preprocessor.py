@@ -3,6 +3,7 @@ Run with python ultrasound_preprocessor.py [directory path of .nii files] [direc
 Run requirements.txt in new virtualenv for best results.
 """
 
+import multiprocessing as mp
 import numpy as np
 import os
 import nibabel as nib
@@ -13,6 +14,7 @@ import sys
 import scipy.sparse
 import scipy.misc
 from skimage.io import imread, imsave
+from concurrent import futures
 
 
 def save_sparse_csr(filename, array):
@@ -114,21 +116,36 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
     if not os.path.exists(trial_img_dir):
         os.makedirs(trial_img_dir)
     raw_clean_voxel, labeled_clean_voxel = None, None
-    for i in range(raw_voxel.shape[0]):  # shape is (1188, 482, 395)
-        if empty_img(raw_voxel[i]) or empty_img(label_voxel[i]):
-            continue
 
-        file_num = str(counter).zfill(5)
+    def parallel_helper(i):
+        if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
 
-        raw_img = raw_voxel[i]
-        save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
-                        scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
+            file_num = str(i).zfill(5)
+            raw_img = raw_voxel[i]
+            save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
+                            scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
+            labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+            labeled_img = labeled_img.astype(np.int16)
+            imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
 
-        labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-        labeled_img = labeled_img.astype(np.int16)
-        imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
-        
-        counter += 1
+
+    with futures.ProcessPoolExecutor() as pool:
+        pool.map(parallel_helper, range(raw_voxel.shape[0]))
+
+    # TODO: Parallelize this
+    # for i in range(raw_voxel.shape[0]):  # shape is (1188, 482, 395)
+    #     if empty_img(raw_voxel[i]) or empty_img(label_voxel[i]):
+    #         continue
+    #
+    #     file_num = str(i).zfill(5)
+    #     raw_img = raw_voxel[i]
+    #     save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
+    #                     scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
+    #
+    #     labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+    #     labeled_img = labeled_img.astype(np.int16)
+    #     imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
+
 
 def main(base_data_dir, base_img_data_dir):
     matched_file_dict = {}  # Dictionary of trial_key to [seg_file, vol_file]
