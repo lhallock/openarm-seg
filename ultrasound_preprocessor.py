@@ -105,6 +105,17 @@ def one_hot_encode(L, class_labels):
             Lhot[i,j,L[i,j]] = 1
     return Lhot
 
+def parallel_helper(i):
+    if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
+
+        file_num = str(i).zfill(5)
+        raw_img = raw_voxel[i]
+        save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
+                        scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
+        labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+        labeled_img = labeled_img.astype(np.int16)
+        imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
+
 def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir):
     raw_nii_file = os.path.join(base_data_dir, raw_nii)
     label_nii_file = os.path.join(base_data_dir, label_nii)
@@ -117,18 +128,18 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         os.makedirs(trial_img_dir)
     raw_clean_voxel, labeled_clean_voxel = None, None
 
-    def parallel_helper(i):
-        if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
-
-            file_num = str(i).zfill(5)
-            raw_img = raw_voxel[i]
-            save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
-                            scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
-            labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-            labeled_img = labeled_img.astype(np.int16)
-            imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
-
-
+    # def parallel_helper(i):
+    #     if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
+    #
+    #         file_num = str(i).zfill(5)
+    #         raw_img = raw_voxel[i]
+    #         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
+    #                         scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
+    #         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+    #         labeled_img = labeled_img.astype(np.int16)
+    #         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
+    #
+    print(raw_voxel.shape[0])
     with futures.ProcessPoolExecutor() as pool:
         pool.map(parallel_helper, range(raw_voxel.shape[0]))
 
