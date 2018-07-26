@@ -105,43 +105,48 @@ def one_hot_encode(L, class_labels):
             Lhot[i,j,L[i,j]] = 1
     return Lhot
 
-def parallel_helper(i):
-    if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
+class Pickler:
+    def __init__(self, trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir):
+        self.raw_nii_file = os.path.join(base_data_dir, raw_nii)
+        self.label_nii_file = os.path.join(base_data_dir, label_nii)
+        self.raw_voxel = nib.load(self.raw_nii_file).get_data()
+        self.label_voxel = nib.load(self.label_nii_file).get_data()
+        self.trial_img_dir = os.path.join(base_img_data_dir, trial_key)
+        self.build_image_dataset()
 
-        file_num = str(i).zfill(5)
-        raw_img = raw_voxel[i]
-        save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
-                        scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
-        labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-        labeled_img = labeled_img.astype(np.int16)
-        imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
+    def parallel_helper(self, i):
+        if not (empty_img(self.raw_voxel[i]) or empty_img(self.label_voxel[i])):
 
-def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir):
-    raw_nii_file = os.path.join(base_data_dir, raw_nii)
-    label_nii_file = os.path.join(base_data_dir, label_nii)
-    raw_voxel = nib.load(raw_nii_file).get_data()
-    label_voxel = nib.load(label_nii_file).get_data()
-    
-    counter = 0
-    trial_img_dir = os.path.join(base_img_data_dir, trial_key)
-    if not os.path.exists(trial_img_dir):
-        os.makedirs(trial_img_dir)
-    raw_clean_voxel, labeled_clean_voxel = None, None
+            file_num = str(i).zfill(5)
+            raw_img = self.raw_voxel[i]
+            save_sparse_csr(os.path.join(self.trial_img_dir, file_num + '_raw'),
+                            scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
+            labeled_img = fill(self.label_voxel[i])  # Grid fill the labeled image
+            labeled_img = labeled_img.astype(np.int16)
+            imsave(os.path.join(self.trial_img_dir, file_num + '_label.png'), labeled_img)
 
-    # def parallel_helper(i):
-    #     if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
-    #
-    #         file_num = str(i).zfill(5)
-    #         raw_img = raw_voxel[i]
-    #         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
-    #                         scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
-    #         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-    #         labeled_img = labeled_img.astype(np.int16)
-    #         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
-    #
-    print(raw_voxel.shape[0])
-    with futures.ProcessPoolExecutor() as pool:
-        pool.map(parallel_helper, range(raw_voxel.shape[0]))
+    def build_image_dataset(self):
+
+        # counter = 0
+
+        if not os.path.exists(self.trial_img_dir):
+            os.makedirs(self.trial_img_dir)
+        # raw_clean_voxel, labeled_clean_voxel = None, None
+
+        # def parallel_helper(i):
+        #     if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
+        #
+        #         file_num = str(i).zfill(5)
+        #         raw_img = raw_voxel[i]
+        #         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
+        #                         scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
+        #         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+        #         labeled_img = labeled_img.astype(np.int16)
+        #         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
+        #
+        print(self.raw_voxel.shape[0])
+        with futures.ProcessPoolExecutor() as pool:
+            pool.map(self.parallel_helper, range(self.raw_voxel.shape[0]))
 
     # TODO: Parallelize this
     # for i in range(raw_voxel.shape[0]):  # shape is (1188, 482, 395)
@@ -175,7 +180,7 @@ def main(base_data_dir, base_img_data_dir):
     # Runs the cleaning image voxel dataset -> creates cleaned 2D jpegs
     for tk, scan_lst in list(matched_file_dict.items()):
         print(tk)
-        build_image_dataset(tk, scan_lst[0], scan_lst[1], base_data_dir, base_img_data_dir)
+        Pickler(tk, scan_lst[0], scan_lst[1], base_data_dir, base_img_data_dir)
 
 
 if __name__ == "__main__":
