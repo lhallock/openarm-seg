@@ -308,7 +308,6 @@ def save_arr_as_nifti(arr, orig_nifti_name, save_name, nii_data_dir, save_dir):
     save_path = os.path.join(save_dir, save_name)
     nib.save(new_nifti, save_path)
 
-
 def get_orig_nifti_name(trial_name, nii_data_dir, identifier):
     for file_name in os.listdir(nii_data_dir):
         if trial_name in file_name:
