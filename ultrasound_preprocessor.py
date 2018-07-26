@@ -105,7 +105,7 @@ def one_hot_encode(L, class_labels):
             Lhot[i,j,L[i,j]] = 1
     return Lhot
 
-class Pickler:
+class GenerateImages:
     def __init__(self, trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir):
         self.raw_nii_file = os.path.join(base_data_dir, raw_nii)
         self.label_nii_file = os.path.join(base_data_dir, label_nii)
@@ -126,42 +126,10 @@ class Pickler:
             imsave(os.path.join(self.trial_img_dir, file_num + '_label.png'), labeled_img)
 
     def build_image_dataset(self):
-
-        # counter = 0
-
         if not os.path.exists(self.trial_img_dir):
             os.makedirs(self.trial_img_dir)
-        # raw_clean_voxel, labeled_clean_voxel = None, None
-
-        # def parallel_helper(i):
-        #     if not (empty_img(raw_voxel[i]) or empty_img(label_voxel[i])):
-        #
-        #         file_num = str(i).zfill(5)
-        #         raw_img = raw_voxel[i]
-        #         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
-        #                         scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
-        #         labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-        #         labeled_img = labeled_img.astype(np.int16)
-        #         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
-        #
-        print(self.raw_voxel.shape[0])
         with futures.ProcessPoolExecutor() as pool:
             pool.map(self.parallel_helper, range(self.raw_voxel.shape[0]))
-
-    # TODO: Parallelize this
-    # for i in range(raw_voxel.shape[0]):  # shape is (1188, 482, 395)
-    #     if empty_img(raw_voxel[i]) or empty_img(label_voxel[i]):
-    #         continue
-    #
-    #     file_num = str(i).zfill(5)
-    #     raw_img = raw_voxel[i]
-    #     save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
-    #                     scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
-    #
-    #     labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
-    #     labeled_img = labeled_img.astype(np.int16)
-    #     imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
-
 
 def main(base_data_dir, base_img_data_dir):
     matched_file_dict = {}  # Dictionary of trial_key to [seg_file, vol_file]
@@ -180,7 +148,7 @@ def main(base_data_dir, base_img_data_dir):
     # Runs the cleaning image voxel dataset -> creates cleaned 2D jpegs
     for tk, scan_lst in list(matched_file_dict.items()):
         print(tk)
-        Pickler(tk, scan_lst[0], scan_lst[1], base_data_dir, base_img_data_dir)
+        GenerateImages(tk, scan_lst[0], scan_lst[1], base_data_dir, base_img_data_dir)
 
 
 if __name__ == "__main__":
