@@ -113,17 +113,19 @@ class GenerateImages:
         self.label_voxel = nib.load(self.label_nii_file).get_data()
         self.trial_img_dir = os.path.join(base_img_data_dir, trial_key)
         self.build_image_dataset()
+        self.count = 0
 
     def parallel_helper(self, i):
         if not (empty_img(self.raw_voxel[i]) or empty_img(self.label_voxel[i])):
 
-            file_num = str(i).zfill(5)
+            file_num = str(self.count).zfill(5)
             raw_img = self.raw_voxel[i]
             save_sparse_csr(os.path.join(self.trial_img_dir, file_num + '_raw'),
                             scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
             labeled_img = fill(self.label_voxel[i])  # Grid fill the labeled image
             labeled_img = labeled_img.astype(np.int16)
             imsave(os.path.join(self.trial_img_dir, file_num + '_label.png'), labeled_img)
+            self.count += 1
 
     def build_image_dataset(self):
         if not os.path.exists(self.trial_img_dir):
