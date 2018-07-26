@@ -112,26 +112,31 @@ class GenerateImages:
         self.raw_voxel = nib.load(self.raw_nii_file).get_data()
         self.label_voxel = nib.load(self.label_nii_file).get_data()
         self.trial_img_dir = os.path.join(base_img_data_dir, trial_key)
-        self.build_image_dataset()
         self.count = 0
+        self.build_image_dataset()
 
     def parallel_helper(self, i):
-        if not (empty_img(self.raw_voxel[i]) or empty_img(self.label_voxel[i])):
-
-            file_num = str(self.count).zfill(5)
+        if not empty_img(self.raw_voxel[i]) or empty_img(self.label_voxel[i]):
+            
+            file_num = str(i-self.count).zfill(5)
             raw_img = self.raw_voxel[i]
             save_sparse_csr(os.path.join(self.trial_img_dir, file_num + '_raw'),
                             scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
             labeled_img = fill(self.label_voxel[i])  # Grid fill the labeled image
             labeled_img = labeled_img.astype(np.int16)
             imsave(os.path.join(self.trial_img_dir, file_num + '_label.png'), labeled_img)
-            self.count += 1
+            # self.count += 1
 
     def build_image_dataset(self):
         if not os.path.exists(self.trial_img_dir):
             os.makedirs(self.trial_img_dir)
+        for x in range(self.raw_voxel.shape[0]):
+            if empty_img(self.raw_voxel[x]) or empty_img(self.label_voxel[x]):
+                self.count += 1
+            else:
+                break
         with futures.ProcessPoolExecutor() as pool:
-            pool.map(self.parallel_helper, range(self.raw_voxel.shape[0]))
+            pool.map(self.parallel_helper, range(self.count, self.raw_voxel.shape[0]))
 
 def main(base_data_dir, base_img_data_dir):
     matched_file_dict = {}  # Dictionary of trial_key to [seg_file, vol_file]
