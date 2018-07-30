@@ -202,9 +202,10 @@ def train(sess,
             # Shuffle Data
             temp_indicies = indicies[j*batch_size:(j+1)*batch_size]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
-            loss, loss_summary = model.fit_batch(sess,x_train_temp, y_train_temp)
+            loss, loss_summary, summary1 = model.fit_batch(sess,x_train_temp, y_train_temp)
             if summary_writer:
                 summary_writer.add_summary(loss_summary, step)
+                summary_writer.add_summary(summary1, step)
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)
@@ -218,9 +219,10 @@ def train(sess,
         if x_train.shape[0] % batch_size != 0:
             temp_indicies = indicies[(j+1)*batch_size:]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
-            loss, loss_summary = model.fit_batch(sess,x_train_temp, y_train_temp)
+            loss, loss_summary, summary1 = model.fit_batch(sess,x_train_temp, y_train_temp)
             if summary_writer:
                 summary_writer.add_summary(loss_summary, step)
+                summary_writer.add_summary(summary1, step)
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)

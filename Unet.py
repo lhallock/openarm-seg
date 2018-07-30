@@ -3,10 +3,10 @@ import nn
 
 class Unet(object):        
     def __init__(self, mean, weight_decay, learning_rate, label_dim = 8, dropout = 0.9, h = 512, w = 512):
-        self.x_train = tf.placeholder(tf.float32, [None, h, w, 1])
-        self.y_train = tf.placeholder(tf.float32, [None, h, w, 9])
-        self.x_test = tf.placeholder(tf.float32, [None, h, w, 1])
-        self.y_test = tf.placeholder(tf.float32, [None, h, w, 9])
+        self.x_train = tf.placeholder(tf.float32, [None, h, w, 1], name="x_train")
+        self.y_train = tf.placeholder(tf.float32, [None, h, w, 9], name="y_train")
+        self.x_test = tf.placeholder(tf.float32, [None, h, w, 1], name="x_test")
+        self.y_test = tf.placeholder(tf.float32, [None, h, w, 9], name="y_test")
         
         self.label_dim = label_dim
         self.weight_decay = weight_decay
@@ -19,11 +19,13 @@ class Unet(object):
         
         self.pred = self.unet(self.x_test, mean, reuse = True, keep_prob = 1.0)
         self.loss_summary = tf.summary.scalar('loss', self.loss)
+        self.hist_loss = tf.summary.histogram('histogram_loss', self.loss)
+        self.summary_op = tf.summary.merge_all()
     
     # Gradient Descent on mini-batch
     def fit_batch(self, sess, x_train, y_train):
-        _, loss, loss_summary = sess.run((self.opt, self.loss, self.loss_summary), feed_dict={self.x_train: x_train, self.y_train: y_train})
-        return loss, loss_summary
+        _, loss, loss_summary, summary1 = sess.run((self.opt, self.loss, self.loss_summary, sefl.summary_op), feed_dict={self.x_train: x_train, self.y_train: y_train})
+        return loss, loss_summary, summary
     
     def predict(self, sess, x):
         prediction = sess.run((self.pred), feed_dict={self.x_test: x})
