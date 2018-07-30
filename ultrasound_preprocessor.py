@@ -103,7 +103,7 @@ def one_hot_encode(L, class_labels):
             Lhot[i,j,L[i,j]] = 1
     return Lhot
 
-def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir):
+def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir, fill_images=False):
     raw_nii_file = os.path.join(base_data_dir, raw_nii)
     label_nii_file = os.path.join(base_data_dir, label_nii)
     raw_voxel = nib.load(raw_nii_file).get_data()
@@ -124,7 +124,10 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
                         scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
 
-        labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+        if fill_images:
+            labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
+        else:
+            labeled_img = label_voxel[i]
         labeled_img = labeled_img.astype(np.int16)
         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
         
