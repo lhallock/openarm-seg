@@ -140,8 +140,8 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         labeled_img = labeled_img.astype(np.int16)
         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
         encoded_labeled_img = one_hot_encode(labeled_img)
-        save_sparse_csr(os.path.join(trial_img_dir, file_num + '_label_enc'),
-                        scipy.sparse.csr_matrix(encoded_labeled_img))
+        print(encoded_labeled_img.shape)
+        np.savez_compressed(os.path.join(trial_img_dir, file_num + '_enc'), encoded_labeled_img)
 
 
         
