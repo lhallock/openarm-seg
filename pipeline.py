@@ -93,6 +93,36 @@ def one_hot_encode(L, class_labels):
     except Exception as e:
         logger.debug(e)
 
+def save_one_hot_encoded(nii_data_arr, class_labels, save_local=False, save_name=None, save_dir=None):
+    """
+    Takes a NIfTI file in Numpy array form and returns a one-hot-encoded version of the array. Optionally has the
+    side-effect of saving a copy of the encoded array to disk.
+
+    Args:
+        nii_data_arr (numpy.ndarray): Numpy array of shape (N, height, width) corresponding to a NIfTI file, where
+            the first dimension is interpreted as the number of contained cross-sections, each one of shape
+            (height, width).
+        class_labels (list): List of ints corresponding to the class labels of a scan.
+        save_local (boolean): Boolean flag indicating whether or not to save a copy of the resulting numpy array
+            to local storage.
+        save_name (str): Filename to save the resulting numpy array with (excluding file extension) if save_local
+            is set to True.
+        save_dir (str): Path to save destination of resulting numpy array if save_local is set to True.
+
+    Returns:
+        numpy.ndarray: Numpy array of shape (N, height, width, len(class_labels)). A one-hot-encoded version of
+            nii_data_arr according to class_labels.
+    """
+    encoded_nii_data_arr = np.empty((nii_data_arr[0], nii_data_arr[1], nii_data_arr[2], len(class_labels)))
+    for i in range(nii_data_arr.shape[0]):
+        logger.debug(i)
+        encoded_img = one_hot_encode(nii_data_arr[i], class_labels)
+        encoded_nii_data_arr[i] = encoded_img
+    if save_local and save_name and save_dir:
+        save_sparse_csr(os.path.join(save_dir, save_name), encoded_nii_data_arr)
+    return encoded_nii_data_arr
+
+
 def convert_label_vals(seg):
     """
     Converts the intensity values of a predicted segmentation to the label values of the original segmentations.
@@ -137,6 +167,11 @@ def show_images(images, cols = 1, titles = None):
         a.set_title(title)
     fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
     plt.show()
+
+def save_sparse_csr(filename, array):
+    # note that .npz extension is added automatically
+    np.savez(filename, data=array.data, indices=array.indices,
+             indptr=array.indptr, shape=array.shape)
     
 def load_sparse_csr(filename):
     # Sparse matrix reading function to read our raw .npz files

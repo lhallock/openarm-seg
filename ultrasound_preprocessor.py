@@ -89,19 +89,27 @@ def fill(image, threshold_dist=15):
 #               np.mean([ltr_color, gtr_color, ltc_color, gtc_color])
     return image
 
-def one_hot_encode(L, class_labels):
-    h, w = 482, 395
+def one_hot_encode(L, class_labels=[0, 7, 8, 9, 45, 51, 52, 53, 68]):
+    """
+    TODO: ensure encoding remains consistent
+
+    2D array (image) of segmentation labels -> .npy
+    # One Hot Encode the label 2d array -> .npy files with dim (h, w, len(class_labels))
+    # num classes will be 8? but currently dynamically allocated based on num colors in all scans.
+    """
+    h, w = L.shape  # Should be 482, 395 (unless resized)
     try:
         encoded = np.array([list(map(class_labels.index, L.flatten()))])
-    except Exception as e:
-        print(e)
-    L = encoded.reshape(h, w)
 
-    Lhot = np.zeros((L.shape[0], L.shape[1], 8))
-    for i in range(L.shape[0]):
-        for j in range(L.shape[1]):
-            Lhot[i,j,L[i,j]] = 1
-    return Lhot
+        L = encoded.reshape(h, w)
+
+        Lhot = np.zeros((L.shape[0], L.shape[1], len(class_labels)))
+        for i in range(L.shape[0]):
+            for j in range(L.shape[1]):
+                Lhot[i,j,L[i,j]] = 1
+        return Lhot  # Should be shape (482, 395, 9)
+    except Exception as e:
+        logger.debug(e)
 
 def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir, fill_images=False):
     raw_nii_file = os.path.join(base_data_dir, raw_nii)
@@ -114,11 +122,12 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
     if not os.path.exists(trial_img_dir):
         os.makedirs(trial_img_dir)
     raw_clean_voxel, labeled_clean_voxel = None, None
+    pad = len(str(raw_voxel.shape[0]))
     for i in range(raw_voxel.shape[0]):  # shape is (1188, 482, 395)
         if empty_img(raw_voxel[i]) or empty_img(label_voxel[i]):
             continue
 
-        file_num = str(counter).zfill(5)
+        file_num = str(counter).zfill(pad)
 
         raw_img = raw_voxel[i]
         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
@@ -130,6 +139,11 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
             labeled_img = label_voxel[i]
         labeled_img = labeled_img.astype(np.int16)
         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
+        encoded_labeled_img = one_hot_encode(labeled_img)
+        save_sparse_csr(os.path.join(trial_img_dir, file_num + '_label_enc'),
+                        scipy.sparse.csr_matrix(encoded_labeled_img))
+
+
         
         counter += 1
 
