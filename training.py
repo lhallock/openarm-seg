@@ -22,6 +22,8 @@ import Unet
 import logging
 import argparse
 import configparser
+import pickle
+from shutil import copyfile
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 # from tensorflow.python.client import device_lib
 # local_device_protos = device_lib.list_local_devices()
@@ -138,6 +140,28 @@ def get_args():
 
     return args
 
+def save_training_hist(losses, val_accs, test_acc, models_dir, model_name):
+    loss_list_name = model_name + "_losses"
+    val_accs_name = model_name + "_val_accs"
+    test_acc_name = model_name + "_test_acc"
+    loss_list_path = os.path.join(os.path.join(models_dir, model_name), loss_list_name)
+    val_accs_path = os.path.join(os.path.join(models_dir, model_name), val_accs_name)
+    test_acc_path = os.path.join(os.path.join(models_dir, model_name), test_acc_name)
+
+    with open(loss_list_path, "wb") as fp:
+        pickle.dump(losses, fp)
+
+    with open(val_accs_path, "wb") as fp:
+        pickle.dump(val_accs, fp)
+
+    with open(test_acc_path, "wb") as fp:
+        pickle.dump(test_acc, fp)
+
+    orig_config = './trainingconfig.ini'
+    config_name = model_name + "_config.ini"
+    new_config = os.path.join(os.path.join(models_dir, model_name), config_name)
+    copyfile(orig_config, new_config)
+
 def train_model(models_dir,
                 training_data_dir,
                 num_epochs,
@@ -154,6 +178,14 @@ def train_model(models_dir,
                 learning_rate,
                 dropout):
 
+    logger.info("Initializing model.")
+
+    tf.reset_default_graph()
+    sess = tf.Session()
+    model = Unet.Unet(mean, weight_decay, learning_rate, dropout)
+    sess.run(tf.global_variables_initializer())
+    saver = tf.train.Saver(max_to_keep=max_to_keep, keep_checkpoint_every_n_hours=ckpt_n_hours)
+
     logger.info("Fetching data.")
 
     raw_data_lst, seg_data_lst = pipeline.load_all_data(training_data_dir)
@@ -163,14 +195,6 @@ def train_model(models_dir,
                                                                          train_percent,
                                                                          val_percent,
                                                                          test_percent)
-
-    logger.info("Initializing model.")
-
-    tf.reset_default_graph()
-    sess = tf.Session()
-    model = Unet.Unet(mean, weight_decay, learning_rate, dropout)
-    sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver(max_to_keep=max_to_keep, keep_checkpoint_every_n_hours=ckpt_n_hours)
 
     logger.info("Training model. Details:")
     logger.info(" * Model name: %s", model_name)
@@ -182,22 +206,32 @@ def train_model(models_dir,
     logger.info(" * Model directory save destination: %s", models_dir)
     logger.info(" * Training data directory: %s", training_data_dir)
 
-    nn.train(sess, 
-             model,
-             saver,
-             x_train,
-             y_train,
-             x_val,
-             y_val,
-             num_epochs,
-             batch_size,
-             auto_save_interval,
-             models_dir = models_dir,
-             model_name = model_name)
+    losses, accs = nn.train(sess, 
+                            model,
+                            saver,
+                            x_train,
+                            y_train,
+                            x_val,
+                            y_val,
+                            num_epochs,
+                            batch_size,
+                            auto_save_interval,
+                            models_dir = models_dir,
+                            model_name = model_name)
 
-    logger.info("%s", nn.validate(sess, model, x_test, y_test))
+    logger.info("Training done. Saving model.")
 
     pipeline.save_model(models_dir, model_name, saver, sess)
+
+    logger.info("Computing accuracy on test set.")
+
+    test_acc = nn.validate(sess, model, x_test, y_test, verbose=True)
+
+    logger.info("Test accuracy: %s", test_acc)
+
+    logger.info("Saving training history and info.")
+
+    save_training_hist(losses, accs, test_acc, models_dir, model_name)
 
 if __name__ == '__main__':
     main()

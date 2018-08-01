@@ -180,6 +180,11 @@ def load_sparse_csr(filename):
     return scipy.sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']),
                       shape=loader['shape'])
 
+def load_compressed_npz(filename):
+    data = np.load(filename)
+    return data['arr_0']
+
+
 def get_raw_pixel_classes(trial_name, raw_nifti_dir):
     trial_segmentation = None
     
@@ -237,7 +242,7 @@ def pad_image(orig_img, height, width):
     return padded_img
     
 
-def load_all_data(processed_data_dir, height=512, width=512, encode_segs=True):
+def load_all_data(processed_data_dir, height=512, width=512, encode_segs=False, use_pre_encoded=True):
     """
     Load both the processed, unlabeled data as well as corresponding labeled segmentation data (if it
     exists) of all scans in a directory. Can draw from an arbitrary number of scan/segmentation pairs. 
@@ -271,13 +276,13 @@ def load_all_data(processed_data_dir, height=512, width=512, encode_segs=True):
     logger.debug("%s", scan_paths)
     
     for scan_path in scan_paths:
-        scan_data_raw, scan_data_labels = load_data(scan_path, height, width, encode_segs)
+        scan_data_raw, scan_data_labels = load_data(scan_path, height, width, encode_segs, use_pre_encoded)
         raw_images.extend(scan_data_raw)
         segmentations.extend(scan_data_labels)
     
     return raw_images, segmentations
 
-def load_data(processed_data_dir, height=512, width=512, encode_segs=True):
+def load_data(processed_data_dir, height=512, width=512, encode_segs=False, use_pre_encoded=True, predicting=False):
     """
     Load both the processed, unlabeled data as well as corresponding labeled segmentation data (if it
     exists) of a single scan. 
@@ -317,19 +322,26 @@ def load_data(processed_data_dir, height=512, width=512, encode_segs=True):
     
     for file in scan_files:
         # logger.debug(file)
-        if 'label' in file:
+        if 'enc' in file and use_pre_encoded:
+            img = load_compressed_npz(os.path.join(processed_data_dir, file))
+            if predicting:
+                img = pad_image(img, height, width)
+            segmentations.append(img)
+            continue
+        elif 'label' in file and not use_pre_encoded:
             img = imread(os.path.join(processed_data_dir, file), flatten=True)
-        else:
-            img = load_sparse_csr(os.path.join(processed_data_dir, file)).toarray() 
-        
-        img = pad_image(img, height, width)
-        if 'raw' in file:
-            raw_images.append(img)
-        elif 'label' in file:
+            if predicting:
+                img = pad_image(img, height, width)
             if encode_segs:
                 img = one_hot_encode(img, default_raw_pixel_classes)
             segmentations.append(img)
-    
+            continue
+        elif 'raw' in file:
+            img = load_sparse_csr(os.path.join(processed_data_dir, file)).toarray()
+            if predicting:
+                img = pad_image(img, height, width)
+            raw_images.append(img)
+        
     return raw_images, segmentations
 
 def save_arr_as_nifti(arr, orig_nifti_name, save_name, nii_data_dir, save_dir):
@@ -388,6 +400,7 @@ def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None):
     segmented = np.empty(img_arr.shape[:3])
     num_sections = img_arr.shape[0]
     for i in range(num_sections):
+        logger.debug("%s", i)
         pred = predict_image(img_arr[i:i+1], model, sess)
         # print("unique vals before convert: ", np.unique(pred))
         pred = convert_label_vals(pred)
@@ -430,7 +443,7 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
         logger.debug("orig_nifti_name = %s", orig_nifti_name)
 
         if orig_nifti_name is not None:
-            raw_scan_data, ignore = load_data(scan_path, encode_segs=False)
+            raw_scan_data, ignore = load_data(scan_path, encode_segs=False, predicting=True)
             logger.debug("%s: %d", scan_path, len(raw_scan_data))
             raw_scan_data_arr = np.asarray(raw_scan_data)
             logger.debug("Predicting segmentation for %s", trial_name)
