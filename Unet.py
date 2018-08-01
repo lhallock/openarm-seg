@@ -20,12 +20,15 @@ class Unet(object):
         self.pred = self.unet(self.x_test, mean, reuse = True, keep_prob = 1.0)
         self.loss_summary = tf.summary.scalar('loss', self.loss)
         self.hist_loss = tf.summary.histogram('histogram_loss', self.loss)
-        self.summary_op = tf.summary.merge_all()
+#         self.summary_op = tf.summary.merge_all()
     
     # Gradient Descent on mini-batch
     def fit_batch(self, sess, x_train, y_train):
-        _, loss, loss_summary, summary1 = sess.run((self.opt, self.loss, self.loss_summary, sefl.summary_op), feed_dict={self.x_train: x_train, self.y_train: y_train})
-        return loss, loss_summary, summary
+        _, loss, loss_summary= sess.run((self.opt, self.loss, self.loss_summary), feed_dict={self.x_train: x_train, self.y_train: y_train})
+        print(type(loss))
+        print(type(_))
+        print(type(loss_summary))
+        return loss, loss_summary
     
     def predict(self, sess, x):
         prediction = sess.run((self.pred), feed_dict={self.x_test: x})
@@ -36,9 +39,16 @@ class Unet(object):
             input = input - mean  # Demean
             
             pool_ = lambda x: nn.max_pool(x, 2, 2)
-            conv_ = lambda x, output_depth, name, padding = 'SAME', relu = True, filter_size = 3: nn.conv(x, filter_size, output_depth, 1, self.weight_decay, 
-                                                                                                           name=name, padding=padding, relu=relu)
-            deconv_ = lambda x, output_depth, name: nn.deconv(x, 2, output_depth, 2, self.weight_decay, name=name)
+            
+            def conv_(x, output_depth, name, padding = 'SAME', relu = True, filter_size = 3):
+                result = nn.conv(x, filter_size, output_depth, 1, self.weight_decay, name=name, padding=padding, relu=relu)
+                tf.summary.histogram(name, result)
+                return result
+            
+            def deconv_(x, output_depth, name):
+                result = nn.deconv(x, 2, output_depth, 2, self.weight_decay, name=name)
+                tf.summary.histogram(name, result)
+                return result
             
             conv_1_1 = conv_(input, 64, 'conv1_1')
             conv_1_2 = conv_(conv_1_1, 64, 'conv1_2')

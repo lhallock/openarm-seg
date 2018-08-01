@@ -197,15 +197,20 @@ def train(sess,
         np.random.shuffle(indicies)
         # Start timer
         start = timeit.default_timer()
+        writer = tf.summary.FileWriter('board')
+        print(int(x_train.shape[0]/batch_size))
 
         for j in range(int(x_train.shape[0]/batch_size)):
             # Shuffle Data
             temp_indicies = indicies[j*batch_size:(j+1)*batch_size]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
-            loss, loss_summary, summary1 = model.fit_batch(sess,x_train_temp, y_train_temp)
-            if summary_writer:
-                summary_writer.add_summary(loss_summary, step)
-                summary_writer.add_summary(summary1, step)
+            loss, loss_summary= model.fit_batch(sess,x_train_temp, y_train_temp)
+            writer.add_summary(loss,j)
+            writer.add_summary(loss_summary,j)
+#             writer.add_summary(summary1,j)
+#             if summary_writer:
+#                 summary_writer.add_summary(loss_summary, step)
+#                 summary_writer.add_summary(summary1, step)
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)
@@ -219,10 +224,10 @@ def train(sess,
         if x_train.shape[0] % batch_size != 0:
             temp_indicies = indicies[(j+1)*batch_size:]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
-            loss, loss_summary, summary1 = model.fit_batch(sess,x_train_temp, y_train_temp)
-            if summary_writer:
-                summary_writer.add_summary(loss_summary, step)
-                summary_writer.add_summary(summary1, step)
+            loss, loss_summary= model.fit_batch(sess,x_train_temp, y_train_temp)
+            writer.add_summary(loss,int(x_train.shape[0]/batch_size) + 1)
+            writer.add_summary(loss_summary,int(x_train.shape[0]/batch_size) + 1)
+#             writer.add_summary(summary1,int(x_train.shape[0]/batch_size) + 1)
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)
@@ -234,8 +239,9 @@ def train(sess,
         summary = tf.Summary()
         for k in range(len(acc)):
             summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
-        if summary_writer:    
-            summary_writer.add_summary(summary, step)
+#         if summary_writer:    
+#             summary_writer.add_summary(summary, step) 
+        wrtier.add_summary(summary, step)
         val_print(i, j, np.mean(losses), acc, stop - start)
         print()
         
