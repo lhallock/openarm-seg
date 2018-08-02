@@ -166,6 +166,8 @@ def train(sess,
           saver,
           x_train,
           y_train,
+          x_val,
+          y_val,
           x_test,
           y_test,
           epochs,
@@ -198,19 +200,20 @@ def train(sess,
         # Start timer
         start = timeit.default_timer()
         writer = tf.summary.FileWriter('board')
-        print(int(x_train.shape[0]/batch_size))
+        print(batch_size)
 
         for j in range(int(x_train.shape[0]/batch_size)):
             # Shuffle Data
             temp_indicies = indicies[j*batch_size:(j+1)*batch_size]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
             loss, loss_summary= model.fit_batch(sess,x_train_temp, y_train_temp)
-            writer.add_summary(loss,j)
-            writer.add_summary(loss_summary,j)
-#             writer.add_summary(summary1,j)
-#             if summary_writer:
-#                 summary_writer.add_summary(loss_summary, step)
-#                 summary_writer.add_summary(summary1, step)
+            acc_summary = sess.run(model.accuracy_scalar,feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+#             conv5_summary = sess.run(model.conv_5_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+#             conv11_summary = sess.run(model.conv_11_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+            writer.add_summary(acc_summary, j)
+#             writer.add_summary(conv5_summary, j)
+#             writer.add_summary(conv11_summary, j)
+            
             if len(losses) == 20:
                 losses.popleft()
             losses.append(loss)
@@ -225,8 +228,13 @@ def train(sess,
             temp_indicies = indicies[(j+1)*batch_size:]
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
             loss, loss_summary= model.fit_batch(sess,x_train_temp, y_train_temp)
-            writer.add_summary(loss,int(x_train.shape[0]/batch_size) + 1)
-            writer.add_summary(loss_summary,int(x_train.shape[0]/batch_size) + 1)
+            sess.run('conv4_2',feed_dict={self.x_train: x_train, self.y_train: y_train})
+            acc_summary = sess.run(model.accuracy_scalar,feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+#             conv5_summary = sess.run(model.conv_5_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+#             conv11_summary = sess.run(model.conv_11_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+            writer.add_summary(acc_summary, j)
+#             writer.add_summary(conv5_summary, j)
+#             writer.add_summary(conv11_summary, j)
 #             writer.add_summary(summary1,int(x_train.shape[0]/batch_size) + 1)
             if len(losses) == 20:
                 losses.popleft()
@@ -235,14 +243,16 @@ def train(sess,
             train_print(i, j, np.mean(losses), j*batch_size, x_train.shape[0], stop - start)
             step = step + 1
         stop = timeit.default_timer()
-        acc = validate(sess, model, x_test, y_test)
+        acc = validate(sess, model, x_val, y_val)
         summary = tf.Summary()
         for k in range(len(acc)):
             summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
 #         if summary_writer:    
 #             summary_writer.add_summary(summary, step) 
-        wrtier.add_summary(summary, step)
-        val_print(i, j, np.mean(losses), acc, stop - start)
+        writer.add_summary(summary, step)
+#         val_print(i, j, np.mean(losses), acc, stop - start)
+        # try correct validation printer
+        
         print()
         
         if i % auto_save_interval == 0 and i > 0:

@@ -17,17 +17,23 @@ class Unet(object):
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = self.output, labels = self.y_train))
         self.opt = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
         
+        self.correct_pred = tf.equal(tf.argmax(self.output,1), tf.argmax(self.y_train,1))
+        self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
+        self.accuracy_scalar = tf.summary.scalar("accuracy",self.accuracy)
+        
         self.pred = self.unet(self.x_test, mean, reuse = True, keep_prob = 1.0)
         self.loss_summary = tf.summary.scalar('loss', self.loss)
         self.hist_loss = tf.summary.histogram('histogram_loss', self.loss)
 #         self.summary_op = tf.summary.merge_all()
+
+    
     
     # Gradient Descent on mini-batch
     def fit_batch(self, sess, x_train, y_train):
         _, loss, loss_summary= sess.run((self.opt, self.loss, self.loss_summary), feed_dict={self.x_train: x_train, self.y_train: y_train})
-        print(type(loss))
-        print(type(_))
-        print(type(loss_summary))
+#         print(type(loss))
+#         print(type(_))
+#         print(type(loss_summary))
         return loss, loss_summary
     
     def predict(self, sess, x):
@@ -71,14 +77,14 @@ class Unet(object):
             pool_4 = pool_(conv_4_2)
 
             conv_5_1 = conv_(pool_4, 1024, 'conv5_1')
-            conv_5_2 = conv_(conv_5_1, 1024, 'conv5_2')
+            self.conv_5_2 = conv_(conv_5_1, 1024, 'conv5_2')
             
-            pool_5 = pool_(conv_5_2)
+            pool_5 = pool_(self.conv_5_2)
             
             conv_6_1 = tf.nn.dropout(conv_(pool_5, 2048, 'conv6_1'), keep_prob)
             conv_6_2 = tf.nn.dropout(conv_(conv_6_1, 2048, 'conv6_2'), keep_prob)
             
-            up_7 = tf.concat([deconv_(conv_6_2, 1024, 'up7'), conv_5_2], 3)  # Error here rn
+            up_7 = tf.concat([deconv_(conv_6_2, 1024, 'up7'), self.conv_5_2], 3)  # Error here rn
             
             conv_7_1 = conv_(up_7, 1024, 'conv7_1')
             conv_7_2 = conv_(conv_7_1, 1024, 'conv7_2')
@@ -101,7 +107,7 @@ class Unet(object):
             up_11 = tf.concat([deconv_(conv_10_2, 64, 'up11'), conv_1_2], 3)
             
             conv_11_1 = conv_(up_11, 64, 'conv11_1')
-            conv_11_2 = conv_(conv_11_1, 64, 'conv11_2')
+            self.conv_11_2 = conv_(conv_11_1, 64, 'conv11_2')
             
-            conv_12 = conv_(conv_11_2, 9, 'conv12_2', filter_size = 1, relu = False)
+            conv_12 = conv_(self.conv_11_2, 9, 'conv12_2', filter_size = 1, relu = False)
             return conv_12
