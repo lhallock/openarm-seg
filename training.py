@@ -46,7 +46,7 @@ def main():
         logger.info("Rerun file to train a model.")
         sys.exit()
 
-    training_params = get_all_params()
+    training_params = get_all_params(args.session_config)
 
     if args.debug:
         logger.setLevel(level=logging.DEBUG)
@@ -115,14 +115,15 @@ def get_parameter(param):
     config.read('trainingconfig.ini')
     return config['DEFAULT'][param]
 
-def get_all_params():
+def get_all_params(section='DEFAULT'):
     config = configparser.ConfigParser()
     config.read('trainingconfig.ini')
-    return dict(config.items('DEFAULT'))
+    return dict(config.items(section))
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train and save a model.')
     parser.add_argument('model_name', action='store', nargs='?', default=None)
+    parser.add_argument('--session-config', '-s', action='store', default='DEFAULT')
     parser.add_argument('--models-dir', '-md', action='store')
     parser.add_argument('--training_data_dir', '-td', action='store')
     parser.add_argument('--default-models-dir', '-dm', action='store')
@@ -182,18 +183,21 @@ def train_model(models_dir,
     logger.info(" * Model directory save destination: %s", models_dir)
     logger.info(" * Training data directory: %s", training_data_dir)
 
-    nn.train(sess, 
-             model,
-             saver,
-             x_train,
-             y_train,
-             x_val,
-             y_val,
-             num_epochs,
-             batch_size,
-             auto_save_interval,
-             models_dir = models_dir,
-             model_name = model_name)
+    try:
+        nn.train(sess, 
+                 model,
+                 saver,
+                 x_train,
+                 y_train,
+                 x_val,
+                 y_val,
+                 num_epochs,
+                 batch_size,
+                 auto_save_interval,
+                 models_dir = models_dir,
+                 model_name = model_name)
+    except KeyboardInterrupt:
+        logger.info("Training interrupted.")
 
     logger.info("%s", nn.validate(sess, model, x_test, y_test))
 

@@ -228,15 +228,20 @@ def train(sess,
             train_print(i, j, np.mean(losses), j*batch_size, x_train.shape[0], stop - start)
             step = step + 1
         stop = timeit.default_timer()
-        acc = validate(sess, model, x_test, y_test)
-        summary = tf.Summary()
-        for k in range(len(acc)):
-            summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
-        if summary_writer:    
-            summary_writer.add_summary(summary, step)
-        val_print(i, j, np.mean(losses), acc, stop - start)
+        # acc = validate(sess, model, x_test, y_test)
+        # summary = tf.Summary()
+        # for k in range(len(acc)):
+        #     summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
+        # if summary_writer:    
+        #     summary_writer.add_summary(summary, step)
+        # val_print(i, j, np.mean(losses), acc, stop - start)
         print()
         
-        if i % auto_save_interval == 0 and i > 0:
+        if i % auto_save_interval == 0:
             if models_dir and model_name:
-                saver.save(sess, os.path.join(os.path.join(models_dir, model_name), model_name))
+                checkpoint_name = model_name + "_epoch_" + str(i)
+                if not os.path.isdir(os.path.join(models_dir, model_name)):
+                    os.mkdir(os.path.join(models_dir, model_name))
+                checkpoint_path = os.path.join(os.path.join(models_dir, model_name), checkpoint_name)
+                os.mkdir(checkpoint_path)
+                saver.save(sess, os.path.join(checkpoint_path, model_name))
