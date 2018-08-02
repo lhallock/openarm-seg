@@ -96,7 +96,7 @@ def one_hot_encode(L, class_labels):
 def save_one_hot_encoded(nii_data_arr, class_labels, save_local=False, save_name=None, save_dir=None):
     """
     Takes a NIfTI file in Numpy array form and returns a one-hot-encoded version of the array. Optionally has the
-    side-effect of saving a copy of the encoded array to disk.
+    side-effect of saving a copy of the encoded array to memory.
 
     Args:
         nii_data_arr (numpy.ndarray): Numpy array of shape (N, height, width) corresponding to a NIfTI file, where
