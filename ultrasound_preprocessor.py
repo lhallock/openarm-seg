@@ -13,6 +13,8 @@ import sys
 import scipy.sparse
 import scipy.misc
 from skimage.io import imread, imsave
+import pipeline
+from time import sleep
 
 
 def save_sparse_csr(filename, array):
@@ -32,19 +34,28 @@ def empty_img(img):
     """
     return not np.count_nonzero(img)
 
+# def split_filename(filename):
+#     """
+#     Splits filename for a trial into 'trial10_30_w1', True if seg[label], False if vol[raw]
+#     """
+#     fn_lst = filename.split('_')
+#     if len(fn_lst) >= 4:
+#         trial_name = "_".join(fn_lst[:3])
+#         if 'seg' in fn_lst[3]:  
+#             return trial_name, True
+#         elif 'vol' in fn_lst[3]:
+#             return trial_name, False
+#     else:
+#         return None, None
+
 def split_filename(filename):
-    """
-    Splits filename for a trial into 'trial10_30_w1', True if seg[label], False if vol[raw]
-    """
-    fn_lst = filename.split('_')
-    if len(fn_lst) >= 4:
-        trial_name = "_".join(fn_lst[:3])
-        if 'seg' in fn_lst[3]:  
-            return trial_name, True
-        elif 'vol' in fn_lst[3]:
-            return trial_name, False
-    else:
-        return None, None
+    print("splitting", filename, end=', ')
+    seg = False
+    if 'seg' in filename:
+        seg = True
+    print("returning", (filename, seg))
+    return filename, seg
+
 
 def bounding_box(img):
     """
@@ -112,10 +123,10 @@ def one_hot_encode(L, class_labels=[0, 7, 8, 9, 45, 51, 52, 53, 68]):
         logger.debug(e)
 
 def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir, fill_images=False):
-    raw_nii_file = os.path.join(base_data_dir, raw_nii)
-    label_nii_file = os.path.join(base_data_dir, label_nii)
-    raw_voxel = nib.load(raw_nii_file).get_data()
-    label_voxel = nib.load(label_nii_file).get_data()
+    raw_nii_file = os.path.join(os.path.join(base_data_dir, trial_key), raw_nii)
+    label_nii_file = os.path.join(os.path.join(base_data_dir, trial_key), label_nii)
+    raw_voxel = nib.load(raw_nii_file).get_fdata()
+    label_voxel = nib.load(label_nii_file).get_fdata()
     
     counter = 0
     trial_img_dir = os.path.join(base_img_data_dir, trial_key)
@@ -130,6 +141,9 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         file_num = str(counter).zfill(pad)
 
         raw_img = raw_voxel[i]
+        if raw_img.shape[0] < 512 or raw_img.shape[1] < 512:
+            raw_img = pipeline.pad_image(raw_img, 512, 512)
+
         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
                         scipy.sparse.csr_matrix(raw_img))  # saves as compressed sparse row matrix .npz of float32
 
@@ -137,29 +151,36 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
             labeled_img = fill(label_voxel[i])  # Grid fill the labeled image
         else:
             labeled_img = label_voxel[i]
+
+        if labeled_img.shape[0] < 512 or labeled_img.shape[1] < 512:
+            labeled_img = pipeline.pad_image(labeled_img, 512, 512)
+
         labeled_img = labeled_img.astype(np.int16)
         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
         encoded_labeled_img = one_hot_encode(labeled_img)
-        save_sparse_csr(os.path.join(trial_img_dir, file_num + '_label_enc'),
-                        scipy.sparse.csr_matrix(encoded_labeled_img))
-
-
+        print(encoded_labeled_img.shape)
+        np.savez_compressed(os.path.join(trial_img_dir, file_num + '_enc'), encoded_labeled_img)
         
         counter += 1
 
 def main(base_data_dir, base_img_data_dir):
-    matched_file_dict = {}  # Dictionary of trial_key to [seg_file, vol_file]
-    # base_data_dir = "/Users/kireet/ucb/HART Research/Muscle Segmentation/raw_nifti_scan"
-    for filename in os.listdir(base_data_dir):
-        trial_key, is_seg = split_filename(filename)
-        if trial_key is not None:
-            if trial_key not in matched_file_dict:
-                matched_file_dict[trial_key] = [None, None]
-            if is_seg:
-                matched_file_dict[trial_key][1] = filename
-            else:
-                matched_file_dict[trial_key][0] = filename
-            
+    matched_file_dict = {}
+    for folder in os.listdir(base_data_dir):
+        for filename in os.listdir(os.path.join(base_data_dir, folder)):
+            trial_key, is_seg = split_filename(filename)
+            if folder is not None:
+                if folder not in matched_file_dict:
+                    matched_file_dict[folder] = [None, None]
+                if is_seg:
+                    matched_file_dict[folder][1] = filename
+                else:
+                    matched_file_dict[folder][0] = filename
+
+    print(matched_file_dict)
+    print("==========")
+    for tk, scan_lst in list(matched_file_dict.items()):
+        print(tk, scan_lst)
+    sleep(5)
     # base_img_data_dir = "/Users/kireet/ucb/HART Research/Muscle Segmentation/cleaned_images"
     # Runs the cleaning image voxel dataset -> creates cleaned 2D jpegs
     for tk, scan_lst in list(matched_file_dict.items()):

@@ -111,7 +111,7 @@ def create_seg(output, label):
     output[output == -1] = 0
     return output
 
-def validate(sess, model, x_test, y_test):
+def validate(sess, model, x_test, y_test, verbose=False):
     '''
     Calculates accuracy of validation set
     
@@ -121,8 +121,11 @@ def validate(sess, model, x_test, y_test):
     @params y_test: Numpy array of validation labels
     @params batch_size: Integer defining mini-batch size
     '''
+    print("Calculating validation accuracy.")
     scores = [0] * int(y_test.shape[3]-1)
     for i in range(int(x_test.shape[0])):
+        if verbose:
+            print("Accuracy calculation step:", i)
         for j in range(int(y_test.shape[3]-1)):
             gt = np.argmax(y_test[i,:,:,:], 2)
             gt = create_seg(gt, j+1)
@@ -185,6 +188,7 @@ def train(sess,
     @params train_validation: Integer defining how many train steps before running accuracy on training mini-batch
     '''
     losses = deque([])
+    epoch_losses = []
     train_accs = deque([])
     step = start_step
 
@@ -227,15 +231,19 @@ def train(sess,
             stop = timeit.default_timer()
             train_print(i, j, np.mean(losses), j*batch_size, x_train.shape[0], stop - start)
             step = step + 1
+
         stop = timeit.default_timer()
-        # acc = validate(sess, model, x_test, y_test)
-        # summary = tf.Summary()
-        # for k in range(len(acc)):
-        #     summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
-        # if summary_writer:    
-        #     summary_writer.add_summary(summary, step)
-        # val_print(i, j, np.mean(losses), acc, stop - start)
+        acc = validate(sess, model, x_test, y_test)
+        train_accs.append(acc)
+        summary = tf.Summary()
+        for k in range(len(acc)):
+            summary.value.add(tag="validation_acc_" + str(k), simple_value=acc[k])
+        if summary_writer:    
+            summary_writer.add_summary(summary, step)
+        val_print(i, j, np.mean(losses), acc, stop - start)
         print()
+
+        epoch_losses.append(np.mean(losses))
         
         if i % auto_save_interval == 0:
             if models_dir and model_name:
@@ -245,3 +253,4 @@ def train(sess,
                 checkpoint_path = os.path.join(os.path.join(models_dir, model_name), checkpoint_name)
                 os.mkdir(checkpoint_path)
                 saver.save(sess, os.path.join(checkpoint_path, model_name))
+        return epoch_losses, train_accs
