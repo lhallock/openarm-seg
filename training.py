@@ -53,21 +53,26 @@ def main():
     if args.debug:
         logger.setLevel(level=logging.DEBUG)
 
-    train_model(training_params['models_dir'],
-                training_params['training_data_dir'],
-                int(training_params['epochs']),
-                int(training_params['batch_size']),
-                int(training_params['ckpt_n_epochs']),
-                int(training_params['max_to_keep']),
-                int(training_params['ckpt_n_hours']),
-                args.model_name,
-                int(training_params['train_percent']),
-                int(training_params['val_percent']),
-                int(training_params['test_percent']),
-                int(training_params['mean']),
-                float(training_params['weight_decay']),
-                float(training_params['learning_rate']),
-                float(training_params['dropout']))
+    losses, accs, test_acc = train_model(training_params['models_dir'],
+                                         training_params['training_data_dir'],
+                                         int(training_params['epochs']),
+                                         int(training_params['batch_size']),
+                                         int(training_params['ckpt_n_epochs']),
+                                         int(training_params['max_to_keep']),
+                                         int(training_params['ckpt_n_hours']),
+                                         args.model_name,
+                                         int(training_params['train_percent']),
+                                         int(training_params['val_percent']),
+                                         int(training_params['test_percent']),
+                                         int(training_params['mean']),
+                                         float(training_params['weight_decay']),
+                                         float(training_params['learning_rate']),
+                                         float(training_params['dropout']))
+
+    logger.info("Saving training history and info.")
+
+    save_training_hist(losses, accs, test_acc, training_params['models_dir'], args.model_name, args.session_config)
+
 
 def configure_default_dirs(default_models_dir, default_training_data_dir):
     config = configparser.ConfigParser()
@@ -141,7 +146,7 @@ def get_args():
 
     return args
 
-def save_training_hist(losses, val_accs, test_acc, models_dir, model_name):
+def save_training_hist(losses, val_accs, test_acc, models_dir, model_name, session_config):
     loss_list_name = model_name + "_losses"
     val_accs_name = model_name + "_val_accs"
     test_acc_name = model_name + "_test_acc"
@@ -159,7 +164,7 @@ def save_training_hist(losses, val_accs, test_acc, models_dir, model_name):
         pickle.dump(test_acc, fp)
 
     orig_config = './trainingconfig.ini'
-    config_name = model_name + "_config.ini"
+    config_name = model_name + "_config_" + str(session_config) + ".ini"
     new_config = os.path.join(os.path.join(models_dir, model_name), config_name)
     copyfile(orig_config, new_config)
 
@@ -233,9 +238,7 @@ def train_model(models_dir,
 
     logger.info("Test accuracy: %s", test_acc)
 
-    logger.info("Saving training history and info.")
-
-    save_training_hist(losses, accs, test_acc, models_dir, model_name)
+    return losses, accs, test_acc
 
 if __name__ == '__main__':
     main()

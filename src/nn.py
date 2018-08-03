@@ -253,4 +253,4 @@ def train(sess,
                 checkpoint_path = os.path.join(os.path.join(models_dir, model_name), checkpoint_name)
                 os.mkdir(checkpoint_path)
                 saver.save(sess, os.path.join(checkpoint_path, model_name))
-        return epoch_losses, train_accs
+    return epoch_losses, train_accs
