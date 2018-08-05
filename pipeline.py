@@ -430,7 +430,7 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess):
     logger.debug("")
     logger.debug("trials found: %s", trials)
     logger.debug("====")
-    
+
     for i in range(len(scan_paths)):
 
         scan_path = scan_paths[i]
