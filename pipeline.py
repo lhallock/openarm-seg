@@ -255,6 +255,8 @@ def load_all_data(processed_data_dir, height=512, width=512, encode_segs=False, 
         height (int): Height in pixels to which scan cross sections get resized.
         width (int): Width in pixels to which scan cross sections get resized.
         encode_segs (boolean): Flag to determine whether or not to one-hot-encode label arrays.
+        use_pre_encoded (boolean): Flag to determine if pre-one-hot-encoded label files should be loaded
+            instead of .png label files.
             
     Returns:
         tuple: Tuple of lists of numpy arrays where the first list contains the raw data, is of length 
