@@ -13,7 +13,7 @@ class Unet(object):
         self.learning_rate = learning_rate
         self.dropout = dropout
 
-        self.output = self.unet(self.x_train, mean, keep_prob=self.dropout)
+        self.output= self.unet(self.x_train, mean, keep_prob=self.dropout)
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = self.output, labels = self.y_train))
         self.opt = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
         
@@ -48,25 +48,67 @@ class Unet(object):
             
             def conv_(x, output_depth, name, padding = 'SAME', relu = True, filter_size = 3):
                 result = nn.conv(x, filter_size, output_depth, 1, self.weight_decay, name=name, padding=padding, relu=relu)
-                tf.summary.histogram(name, result)
-                return result
+                tf.summary.histogram(name, result[1])
+                return result[1]
+            
+            def conv1_(x, output_depth, name, padding = 'SAME', relu = True, filter_size = 3):
+                result = nn.conv(x, filter_size, output_depth, 1, self.weight_decay, name=name, padding=padding, relu=relu)
+                tf.summary.histogram(name, result[1])
+                return result[0], result[1]
             
             def deconv_(x, output_depth, name):
                 result = nn.deconv(x, 2, output_depth, 2, self.weight_decay, name=name)
                 tf.summary.histogram(name, result)
                 return result
             
-            conv_1_1 = conv_(input, 64, 'conv1_1')
-            conv_1_2 = conv_(conv_1_1, 64, 'conv1_2')
+            weight, conv_1_1 = conv1_(input, 64, 'conv1_1')
+            # TODO: figure out imageIndex and inputLabel so I can finish visualization,
+            # TODO: FINISH the FCN implementation, start from scratch using these methods 
+            batchsizeFeatures = 1
+            imageIndex = 56
+
+            inputImage = batch["data"][imageIndex:imageIndex+batchsizeFeatures]
+            inputImage = inputImage/255.0
+            inputImage = np.reshape(inputImage,[-1,3,512, 512])
+            inputImage = np.swapaxes(inputImage,1,3)
+
+            inputLabel = np.zeros((batchsize,9))
+            inputLabel[np.arange(1),batch["labels"][imageIndex:imageIndex+batchsizeFeatures]] = 1;
+            print(conv_1_1.get_shape())
+            holder1 = tf.placeholder(tf.float32, [None, 512, 512, 64])
+            unBias = tf.nn.relu(holder1)
+            unConv = tf.nn.conv2d_transpose(unBias, weight, output_shape=[9, 512, 512, 1], strides=[1, 3, 3, 1], padding="SAME")
+            activations_1_1 = conv_1_1.eval(feed_dict={self.x_train: x_train, self.y_train: y_train})
+            print(activations_1_1.shape())
+            for i in xrange(9):
+                isolated = activations_1_1.copy()
+                isolated[:,:,:,:i] = 0
+                isolated[:,:,:,i+1:] = 0
+                print(np.shape(isolated))
+                totals = np.sum(isolated,axis=(1,2,3))
+                best = np.argmin(totals,axis=0)
+                print(best)
+                pixelactive = unConv.eval(feed_dict={holder1: isolated})
+             
+                saveImage(pixelactive[best],"activ"+str(i)+".png")
+#                 saveImage(inputImage[best],"activ"+str(i)+"-base.png"
+            
+            conv_1_2 = conv1_(conv_1_1, 64, 'conv1_2')
+            holder2 = tf.placeholder(tf.float32, [None, 512, 512, 64])
+            print(conv_1_2.get_shape())
+
 
             pool_1 = pool_(conv_1_2)
 
             conv_2_1 = conv_(pool_1, 128, 'conv2_1')
+            print(conv_2_1.get_shape())
+                   
             conv_2_2 = conv_(conv_2_1, 128, 'conv2_2')
+            print(conv_2_2.get_shape())
 
-            pool_2 = pool_(conv_2_2)
+            self.pool_2 = pool_(conv_2_2)
 
-            conv_3_1 = conv_(pool_2, 256, 'conv3_1')
+            conv_3_1 = conv_(self.pool_2, 256, 'conv3_1')
             conv_3_2 = conv_(conv_3_1, 256, 'conv3_2')
 
             pool_3 = pool_(conv_3_2)
@@ -110,4 +152,5 @@ class Unet(object):
             self.conv_11_2 = conv_(conv_11_1, 64, 'conv11_2')
             
             conv_12 = conv_(self.conv_11_2, 9, 'conv12_2', filter_size = 1, relu = False)
+            self.merged_summary_op = tf.summary.merge_all()
             return conv_12

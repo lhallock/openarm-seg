@@ -46,7 +46,7 @@ def conv(x, filter_size, num_filters, stride, weight_decay, name, padding='SAME'
             # Concat the convolved output together again
             conv = tf.concat(output_groups, axis=3)
         if relu:
-            return tf.nn.relu(conv + biases)
+            return [weights, tf.nn.relu(conv + biases)]
         else:
             return conv + biases
 
@@ -162,6 +162,7 @@ def val_print(i, j, loss, acc, time):
 
     
 def train(sess,
+          summary_op,
           model,
           saver,
           x_train,
@@ -199,7 +200,9 @@ def train(sess,
         np.random.shuffle(indicies)
         # Start timer
         start = timeit.default_timer()
-        writer = tf.summary.FileWriter('board')
+        # use FileWriter because SummaryWriter is a deprecated method 
+        writer = tf.summary.FileWriter('board/1')
+        writer.add_graph(tf.get_default_graph())
         print(batch_size)
 
         for j in range(int(x_train.shape[0]/batch_size)):
@@ -208,9 +211,15 @@ def train(sess,
             x_train_temp, y_train_temp = x_train[temp_indicies], y_train[temp_indicies]
             loss, loss_summary= model.fit_batch(sess,x_train_temp, y_train_temp)
             acc_summary = sess.run(model.accuracy_scalar,feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+#             summ = sess.run(summary_op, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+
 #             conv5_summary = sess.run(model.conv_5_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+#             pool2_summary = sess.run(model.pool_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+
 #             conv11_summary = sess.run(model.conv_11_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
             writer.add_summary(acc_summary, j)
+#             writer.add_summary(summ, j)
+#             writer.add_summary(pool2_summary, j)
 #             writer.add_summary(conv5_summary, j)
 #             writer.add_summary(conv11_summary, j)
             
@@ -230,9 +239,11 @@ def train(sess,
             loss, loss_summary= model.fit_batch(sess,x_train_temp, y_train_temp)
             sess.run('conv4_2',feed_dict={self.x_train: x_train, self.y_train: y_train})
             acc_summary = sess.run(model.accuracy_scalar,feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
+#             summ = sess.run(summary_op, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
 #             conv5_summary = sess.run(model.conv_5_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
 #             conv11_summary = sess.run(model.conv_11_2, feed_dict={model.x_train: x_train_temp, model.y_train: y_train_temp})
             writer.add_summary(acc_summary, j)
+#             writer.add_summary(summ, j)
 #             writer.add_summary(conv5_summary, j)
 #             writer.add_summary(conv11_summary, j)
 #             writer.add_summary(summary1,int(x_train.shape[0]/batch_size) + 1)
