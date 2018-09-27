@@ -188,13 +188,13 @@ def train_model(models_dir,
 
     tf.reset_default_graph()
     sess = tf.Session()
-    model = Unet.Unet(mean, weight_decay, learning_rate, dropout)
+    model = Unet.Unet(mean, weight_decay, learning_rate, dropout, h=494, w=321)
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver(max_to_keep=max_to_keep, keep_checkpoint_every_n_hours=ckpt_n_hours)
 
     logger.info("Fetching data.")
 
-    raw_data_lst, seg_data_lst = pipeline.load_all_data(training_data_dir)
+    raw_data_lst, seg_data_lst = pipeline.load_all_data(training_data_dir, no_empty=True)
 
     x_train, x_val, x_test, y_train, y_val, y_test = pipeline.split_data(raw_data_lst,
                                                                          seg_data_lst,

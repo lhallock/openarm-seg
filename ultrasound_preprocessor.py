@@ -120,28 +120,41 @@ def one_hot_encode(L, class_labels=[0, 7, 8, 9, 45, 51, 52, 53, 68]):
                 Lhot[i,j,L[i,j]] = 1
         return Lhot  # Should be shape (482, 395, 9)
     except Exception as e:
-        logger.debug(e)
+        print("one_hot_encode exception: ", e)
 
-def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir, fill_images=False):
+def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_data_dir, fill_images=False, pad_images=False):
     raw_nii_file = os.path.join(os.path.join(base_data_dir, trial_key), raw_nii)
     label_nii_file = os.path.join(os.path.join(base_data_dir, trial_key), label_nii)
     raw_voxel = nib.load(raw_nii_file).get_fdata()
     label_voxel = nib.load(label_nii_file).get_fdata()
-    
+
+    print("before raw and label shapes:", raw_voxel.shape, label_voxel.shape)
+
+    if np.argmax(raw_voxel.shape) != 0:
+        raw_voxel = np.swapaxes(raw_voxel, np.argmax(raw_voxel.shape), 0)
+        label_voxel = np.swapaxes(label_voxel, np.argmax(label_voxel.shape), 0)
+
+    # WHOOPS, WEIRD AUGMENTATION BUG, UNCOMMENT IF NEEDED
+    # label_voxel[label_voxel == 4411] = 7
+    # label_voxel[label_voxel == 32767] = 52
+
+    print("after raw and label shapes:", raw_voxel.shape, label_voxel.shape)
+
     counter = 0
     trial_img_dir = os.path.join(base_img_data_dir, trial_key)
     if not os.path.exists(trial_img_dir):
         os.makedirs(trial_img_dir)
     raw_clean_voxel, labeled_clean_voxel = None, None
     pad = len(str(raw_voxel.shape[0]))
-    for i in range(raw_voxel.shape[0]):  # shape is (1188, 482, 395)
-        if empty_img(raw_voxel[i]) or empty_img(label_voxel[i]):
-            continue
+    for i in range(raw_voxel.shape[0]):
+        # Commenting out to preserve dimensions
+        # if empty_img(raw_voxel[i]) or empty_img(label_voxel[i]):
+        #     continue
 
         file_num = str(counter).zfill(pad)
 
         raw_img = raw_voxel[i]
-        if raw_img.shape[0] < 512 or raw_img.shape[1] < 512:
+        if (raw_img.shape[0] < 512 or raw_img.shape[1] < 512) and pad_images:
             raw_img = pipeline.pad_image(raw_img, 512, 512)
 
         save_sparse_csr(os.path.join(trial_img_dir, file_num + '_raw'),
@@ -152,11 +165,17 @@ def build_image_dataset(trial_key, raw_nii, label_nii, base_data_dir, base_img_d
         else:
             labeled_img = label_voxel[i]
 
-        if labeled_img.shape[0] < 512 or labeled_img.shape[1] < 512:
+
+        if (labeled_img.shape[0] < 512 or labeled_img.shape[1] < 512) and pad_images:
             labeled_img = pipeline.pad_image(labeled_img, 512, 512)
+
+        # ANOTHER BUG, UNCOMMENT IF NEEDED
+        # labeled_img = np.rint(labeled_img)
 
         labeled_img = labeled_img.astype(np.int16)
         imsave(os.path.join(trial_img_dir, file_num + '_label.png'), labeled_img)
+
+
         encoded_labeled_img = one_hot_encode(labeled_img)
         print(encoded_labeled_img.shape)
         np.savez_compressed(os.path.join(trial_img_dir, file_num + '_enc'), encoded_labeled_img)
@@ -180,7 +199,7 @@ def main(base_data_dir, base_img_data_dir):
     print("==========")
     for tk, scan_lst in list(matched_file_dict.items()):
         print(tk, scan_lst)
-    sleep(5)
+    sleep(2)
     # base_img_data_dir = "/Users/kireet/ucb/HART Research/Muscle Segmentation/cleaned_images"
     # Runs the cleaning image voxel dataset -> creates cleaned 2D jpegs
     for tk, scan_lst in list(matched_file_dict.items()):
