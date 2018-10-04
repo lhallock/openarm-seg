@@ -394,7 +394,7 @@ def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empt
     training_dim = 2 ** (ceil(log(find_training_dim(scan_paths), 2)))
     
     for scan_path in scan_paths:
-        scan_data_raw, scan_data_labels, orig_dims = load_data(scan_path, True, training_dim, training_dim, encode_segs, use_pre_encoded, no_empty)
+        scan_data_raw, scan_data_labels, orig_dims = load_data(scan_path, reorient, training_dim, training_dim, encode_segs, use_pre_encoded, no_empty)
         raw_images.extend(scan_data_raw)
         segmentations.extend(scan_data_labels)
     
@@ -568,23 +568,25 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorie
         logger.debug("Predicting segmentation for %s", trial_name)
         pred_seg = predict_whole_seg(raw_scan_data_arr, model, sess)
 
-        # pred_seg = reorient_nifti_arr(pred_seg) 
         print("orig dims:", orig_dims)
         print("pred_seg dims:", pred_seg.shape)
-        restore_height, restore_width = orig_dims[1], orig_dims[0]
-        cropped_pred_seg = np.empty((pred_seg.shape[0], restore_height, restore_width))
-        # restored_pred_seg = np.empty(orig_dims)
+        restore_height, restore_width = orig_dims[1], orig_dims[2]
+        if reorient:
+            restore_height, restore_width = orig_dims[1], orig_dims[0]
 
+        cropped_pred_seg = np.empty((pred_seg.shape[0], restore_height, restore_width))
 
         for i in range(pred_seg.shape[0]):
             cropped_pred_seg[i] = crop_image(pred_seg[i], restore_height, restore_width)
 
-        cropped_pred_seg = reorient_nifti_arr(cropped_pred_seg)
-
+        if reorient:
+            cropped_pred_seg = reorient_nifti_arr(cropped_pred_seg)
+        
+        pred_seg = cropped_pred_seg
 
         save_name = trial_name + '_pred_seg.nii'
 
-        save_arr_as_nifti(cropped_pred_seg, orig_nifti_name, save_name, nii_data_dir, save_dir)
+        save_arr_as_nifti(pred_seg, orig_nifti_name, save_name, nii_data_dir, save_dir)
 
 # def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorient):
 #     """
