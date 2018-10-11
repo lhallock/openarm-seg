@@ -184,17 +184,32 @@ def train_model(models_dir,
                 learning_rate,
                 dropout):
 
+    logger.info("Fetching data.")
+
+    raw_data_lst, seg_data_lst, orig_dims = pipeline.load_all_data(training_data_dir, no_empty=True, reorient=True, predicting=False)
+
+    training_height, training_width = raw_data_lst[0].shape[0], raw_data_lst[0].shape[1]
+
+    print("type(seg_data_lst):", type(seg_data_lst))
+    print("type(seg_data_lst[0]):", type(seg_data_lst[0]))
+
+    print("len(raw_data_lst), len(seg_data_lst): ", len(raw_data_lst), len(seg_data_lst))
+
+    print("training_height, training_width: ", training_height, training_width)
+
+    print("raw_data_lst[0].shape: ", raw_data_lst[0].shape)
+    print("seg_data_lst[0].shape: ", seg_data_lst[0].shape)
+
+
+    logger.debug("ORIG DIMS: %s", orig_dims)
+
     logger.info("Initializing model.")
 
     tf.reset_default_graph()
     sess = tf.Session()
-    model = Unet.Unet(mean, weight_decay, learning_rate, dropout, h=494, w=321)
+    model = Unet.Unet(mean, weight_decay, learning_rate, dropout, h=training_height, w=training_width)
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver(max_to_keep=max_to_keep, keep_checkpoint_every_n_hours=ckpt_n_hours)
-
-    logger.info("Fetching data.")
-
-    raw_data_lst, seg_data_lst = pipeline.load_all_data(training_data_dir, no_empty=True)
 
     x_train, x_val, x_test, y_train, y_val, y_test = pipeline.split_data(raw_data_lst,
                                                                          seg_data_lst,

@@ -84,6 +84,7 @@ def one_hot_encode(L, class_labels):
     # One Hot Encode the label 2d array -> .npy files with dim (h, w, len(class_labels))
     # num classes will be 8? but currently dynamically allocated based on num colors in all scans.
     """
+    print("L shape:", L.shape)
     h, w = L.shape  # Should be 482, 395 (unless resized)
     try:
         encoded = np.array([list(map(class_labels.index, L.flatten()))])
@@ -96,7 +97,7 @@ def one_hot_encode(L, class_labels):
                 Lhot[i,j,L[i,j]] = 1
         return Lhot  # Should be shape (482, 395, 9)
     except Exception as e:
-        logger.debug(e)
+        print("ONE HOT ENCODE EXCEPTION:", e)
 
 def save_one_hot_encoded(nii_data_arr, class_labels, save_local=False, save_name=None, save_dir=None):
     """
@@ -247,6 +248,7 @@ def pad_image(orig_img, height, width):
     pad_dims = ((height_top_pad, height_bot_pad), (width_left_pad, width_right_pad))
     padded_img = np.pad(orig_img, pad_width=pad_dims, mode='constant', constant_values=0)
     
+
     return padded_img
     
 
@@ -379,13 +381,14 @@ def find_training_dim(scan_paths):
     print("max dim is: ", max_dim)
     return max_dim
 
-def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empty=False):
+def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empty=False, reorient=True, predicting=False):
     raw_images = []
     segmentations = []    
     scan_paths = []
     
+    print(os.listdir(training_dir))
     for folder in os.listdir(training_dir):
-        if not folder.startswith('.') and 'trial' in folder.lower():
+        if os.path.isdir(os.path.join(training_dir, folder)) and not folder.startswith('.') and 'trial' in folder.lower():
             scan_folder_path = os.path.join(training_dir, folder)
             scan_paths.append(scan_folder_path)
     
@@ -393,17 +396,22 @@ def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empt
 
     training_dim = 2 ** (ceil(log(find_training_dim(scan_paths), 2)))
     
+    
+    # >>>>>>>>>>>>>>>>>>>>>> FOR DEBUGGING PURPOSES, JUST USE MAX DIM <<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    # training_dim = find_training_dim(scan_paths)
+    
     for scan_path in scan_paths:
-        scan_data_raw, scan_data_labels, orig_dims = load_data(scan_path, reorient, training_dim, training_dim, encode_segs, use_pre_encoded, no_empty)
+        scan_data_raw, scan_data_labels, orig_dims = load_data(scan_path, reorient, training_dim, training_dim, encode_segs, use_pre_encoded, no_empty, predicting)
         raw_images.extend(scan_data_raw)
         segmentations.extend(scan_data_labels)
     
-    return raw_images, segmentations
+    return raw_images, segmentations, orig_dims
 
 
 def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, use_pre_encoded=True, no_empty=False, predicting=False):
     # ASSUMPTION: Apply same transformation to all niftis to get proper orientation, that is, swap (x, y) dimensions. 
     default_raw_pixel_classes = [0, 7, 8, 9, 45, 51, 52, 53, 68]
+
     raw_images = []
     segmentations = []    
     scan_files = []
@@ -427,6 +435,9 @@ def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, us
 
     # encode and pad data, put into raw_images, segmentations
     
+    raw_nifti_arr = np.rint(raw_nifti_arr).astype(int)
+    seg_nifti_arr = np.rint(seg_nifti_arr).astype(int)
+
     orig_dims = raw_nifti_arr.shape
     # TRANSFORMATION ASSUMPTION
     if reorient:
@@ -445,7 +456,9 @@ def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, us
         raw_images.append(pad_image(raw_nifti_arr[i], height, width))
 
         if not predicting:
+            print("ADDED SEG")
             encoded_seg = one_hot_encode(pad_image(seg_nifti_arr[i], height, width), default_raw_pixel_classes)
+            print("ENCODED SEG SHAPE:", encoded_seg.shape)
             segmentations.append(encoded_seg)
 
         
@@ -464,6 +477,8 @@ def save_arr_as_nifti(arr, orig_nifti_name, save_name, nii_data_dir, save_dir):
     original_vol = nib.load(original_vol_path)
     new_header = original_vol.header.copy()
     new_nifti = nib.nifti1.Nifti1Image(arr, None, header=new_header)
+    if not (os.path.exists(save_dir) and os.path.isdir(save_dir)):
+        os.mkdir(save_dir)
     save_path = os.path.join(save_dir, save_name)
     nib.save(new_nifti, save_path)
 
@@ -539,7 +554,7 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorie
     
     for folder in os.listdir(to_segment_dir):
         logger.debug(folder)
-        if folder.startswith('trial'):
+        if os.path.isdir(os.path.join(to_segment_dir, folder)) and folder.startswith('trial'):
             scan_path = os.path.join(to_segment_dir, folder)
             scan_paths.append(scan_path)
             trials.append(folder)
@@ -579,8 +594,10 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorie
         for i in range(pred_seg.shape[0]):
             cropped_pred_seg[i] = crop_image(pred_seg[i], restore_height, restore_width)
 
+        print("cropped_pred_seg dims:", cropped_pred_seg.shape)
         if reorient:
             cropped_pred_seg = reorient_nifti_arr(cropped_pred_seg)
+            print("reoriented cropped_pred_seg dims:", cropped_pred_seg.shape)
         
         pred_seg = cropped_pred_seg
 
