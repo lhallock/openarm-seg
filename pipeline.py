@@ -34,7 +34,7 @@ logger.setLevel(logging.DEBUG)
 # DATA FUNCTIONS
 ##################################
 
-def split_data(raw_data, seg_data, percent_train, percent_val, percent_test):
+def split_data(raw_data, seg_data, percent_train, percent_val, percent_test, percent_keep):
     assert len(raw_data) == len(seg_data)
     assert percent_train + percent_val + percent_test == 100
 
@@ -44,12 +44,15 @@ def split_data(raw_data, seg_data, percent_train, percent_val, percent_test):
 
     height, width = raw_data[0].shape
 
-    num_train = np.round(len(raw_data) * percent_train/100).astype(np.int)
-    num_val = np.round(num_train + len(raw_data) * percent_val/100).astype(np.int)
-    num_test = np.round(num_val + len(raw_data) * percent_test/100).astype(np.int)
+    reduced_range = floor(percent_keep/100*len(raw_data))
+    logger.debug(reduced_range)
+    num_train = np.round(reduced_range * percent_train/100).astype(np.int)
+    num_val = np.round(num_train + reduced_range * percent_val/100).astype(np.int)
+    num_test = np.round(num_val + reduced_range * percent_test/100).astype(np.int)
 
-    rand_indices = list(np.random.choice(len(raw_data), len(raw_data), replace=False))
+    rand_indices = list(np.random.choice(floor((percent_keep/100)*len(raw_data)), floor((percent_keep/100)*len(raw_data)), replace=False))
 
+    print(rand_indices)
     for i in rand_indices[:num_train]:
         x_train.append(raw_data[i])
         y_train.append(seg_data[i])
@@ -398,18 +401,27 @@ def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empt
     
     
     # >>>>>>>>>>>>>>>>>>>>>> FOR DEBUGGING PURPOSES, JUST USE MAX DIM <<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    # training_dim = find_training_dim(scan_paths)
+    #training_dim = find_training_dim(scan_paths)
     
     for scan_path in scan_paths:
         scan_data_raw, scan_data_labels, orig_dims = load_data(scan_path, reorient, training_dim, training_dim, encode_segs, use_pre_encoded, no_empty, predicting)
         raw_images.extend(scan_data_raw)
         segmentations.extend(scan_data_labels)
+
+    """
+    The following is a test implementation for h5py, aims to store our large dataset in a manner that we can access without running out of memory. 
+    fullFile = h5py.File("fullFile.hdf5", "w") # somehow we need to make this filename unique to our segmentation
+    
+    """
     
     return raw_images, segmentations, orig_dims
 
 
 def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, use_pre_encoded=True, no_empty=False, predicting=False):
     # ASSUMPTION: Apply same transformation to all niftis to get proper orientation, that is, swap (x, y) dimensions. 
+    # HARDCODE in the label casts
+    label_cast_source = 1
+    label_cast_dest = 7
     default_raw_pixel_classes = [0, 7, 8, 9, 45, 51, 52, 53, 68]
 
     raw_images = []
@@ -457,12 +469,22 @@ def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, us
 
         if not predicting:
             print("ADDED SEG")
-            encoded_seg = one_hot_encode(pad_image(seg_nifti_arr[i], height, width), default_raw_pixel_classes)
+            padded_image = pad_image(seg_nifti_arr[i], height, width)
+            casted_image = cast_label_numbers(padded_image, label_cast_source, label_cast_dest)
+            encoded_seg = one_hot_encode(casted_image, default_raw_pixel_classes)
             print("ENCODED SEG SHAPE:", encoded_seg.shape)
             segmentations.append(encoded_seg)
 
         
     return raw_images, segmentations, orig_dims
+
+
+# LIKELY the function you need if you get the error "1 is not in list"
+# This function casts incorrectly labeled segmentations to the desired label number 
+def cast_label_numbers(seg_image_slice, src, dst):
+    np.place(seg_image_slice, seg_image_slice == src, dst)
+    return seg_image_slice
+    
 
 
 def load_nifti_data(nifti_path):
@@ -601,7 +623,14 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorie
         
         pred_seg = cropped_pred_seg
 
+        pred_seg = np.rint(pred_seg)
+
+        # pred_seg[pred_seg == 6] = 7
+
+
         save_name = trial_name + '_pred_seg.nii'
+
+
 
         save_arr_as_nifti(pred_seg, orig_nifti_name, save_name, nii_data_dir, save_dir)
 

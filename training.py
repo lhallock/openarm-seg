@@ -35,6 +35,10 @@ logger.handlers = []
 logger.addHandler(stream)
 logger.setLevel(logging.INFO)
 
+fh = logging.FileHandler('training_log.log')
+fh.setLevel(logging.DEBUG)
+logger.addHandler(fh)
+
 logging.getLogger('PIL').setLevel(logging.ERROR)
 logging.getLogger('PIL.Image').setLevel(logging.ERROR)
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
@@ -64,6 +68,7 @@ def main():
                                          int(training_params['train_percent']),
                                          int(training_params['val_percent']),
                                          int(training_params['test_percent']),
+                                         int(training_params['keep_percent']),
                                          int(training_params['mean']),
                                          float(training_params['weight_decay']),
                                          float(training_params['learning_rate']),
@@ -110,6 +115,7 @@ def configure_defaults():
     config['DEFAULT']['max_to_keep'] = '1'
     config['DEFAULT']['ckpt_n_hours'] = '1'
     config['DEFAULT']['ckpt_n_epochs'] = '5'
+    config['DEFAULT']['keep_percent'] = '100'
 
     with open('trainingconfig.ini', 'w') as configfile:
         config.write(configfile)
@@ -154,19 +160,37 @@ def save_training_hist(losses, val_accs, test_acc, models_dir, model_name, sessi
     val_accs_path = os.path.join(os.path.join(models_dir, model_name), val_accs_name)
     test_acc_path = os.path.join(os.path.join(models_dir, model_name), test_acc_name)
 
-    with open(loss_list_path, "wb") as fp:
-        pickle.dump(losses, fp)
+    # with open(loss_list_path, "wb") as fp:
+    #     pickle.dump(losses, fp)
 
-    with open(val_accs_path, "wb") as fp:
-        pickle.dump(val_accs, fp)
+    # with open(val_accs_path, "wb") as fp:
+    #     pickle.dump(val_accs, fp)
 
-    with open(test_acc_path, "wb") as fp:
-        pickle.dump(test_acc, fp)
+    # with open(test_acc_path, "wb") as fp:
+    #     pickle.dump(test_acc, fp)
+
+
+    with open(loss_list_path, 'w') as f:
+        for item in losses:
+            f.write("%s\n" % item)
+
+    with open(val_accs_path, 'w') as f:
+        for item in val_accs:
+            f.write("%s\n" % item)
+
+    with open(test_acc_path, 'w') as f:
+        for item in test_acc:
+            f.write("%s\n" % item)
 
     orig_config = './trainingconfig.ini'
     config_name = model_name + "_config_" + str(session_config) + ".ini"
     new_config = os.path.join(os.path.join(models_dir, model_name), config_name)
     copyfile(orig_config, new_config)
+
+    new_training_log_path = os.path.join(os.path.join(models_dir, model_name), 'training_log.log')
+
+    copyfile('./training_log.log', new_training_log_path)
+    os.remove('./training_log.log')
 
 def train_model(models_dir,
                 training_data_dir,
@@ -179,6 +203,7 @@ def train_model(models_dir,
                 train_percent,
                 val_percent,
                 test_percent,
+                keep_percent,
                 mean,
                 weight_decay,
                 learning_rate,
@@ -215,7 +240,8 @@ def train_model(models_dir,
                                                                          seg_data_lst,
                                                                          train_percent,
                                                                          val_percent,
-                                                                         test_percent)
+                                                                         test_percent,
+                                                                         keep_percent)
 
     logger.info("Training model. Details:")
     logger.info(" * Model name: %s", model_name)

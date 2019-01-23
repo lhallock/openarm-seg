@@ -29,6 +29,11 @@ class Unet(object):
         prediction = sess.run((self.pred), feed_dict={self.x_test: x})
         return prediction
 
+    # def conv_(x, output_depth, name, padding = 'SAME', relu = True, filter_size = 3):
+    #             result = nn.conv(x, filter_size, output_depth, 1, self.weight_decay, name=name, padding=padding, relu=relu)
+    #             tf.summary.histogram(name, result[1])
+    #             return result[1]
+
     def unet(self, input, mean, keep_prob = 0.9, reuse = None):
         with tf.variable_scope('vgg', reuse=reuse):
             input = input - mean  # Demean
