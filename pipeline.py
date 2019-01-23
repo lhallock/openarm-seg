@@ -34,7 +34,7 @@ logger.setLevel(logging.DEBUG)
 # DATA FUNCTIONS
 ##################################
 
-def split_data(raw_data, seg_data, percent_train, percent_val, percent_test, percent_keep):
+def split_data(raw_data, seg_data, percent_train, percent_val, percent_test, percent_keep, total_keep = 0):
     assert len(raw_data) == len(seg_data)
     assert percent_train + percent_val + percent_test == 100
 
@@ -69,6 +69,11 @@ def split_data(raw_data, seg_data, percent_train, percent_val, percent_test, per
     y_train = np.array(y_train)
     y_val = np.array(y_val)
     y_test = np.array(y_test)
+
+    if total_keep != 0:
+        x_train = x_train[:total_keep]
+        y_train = y_train[:total_keep]
+
 
     logger.debug(x_train.shape)
     logger.debug(x_test.shape)
@@ -417,7 +422,7 @@ def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empt
     return raw_images, segmentations, orig_dims
 
 
-def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, use_pre_encoded=True, no_empty=False, predicting=False):
+def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, use_pre_encoded=True, no_empty=False, predicting=False, include_lower=True):
     # ASSUMPTION: Apply same transformation to all niftis to get proper orientation, that is, swap (x, y) dimensions. 
     # HARDCODE in the label casts
     label_cast_source = 1
@@ -460,7 +465,7 @@ def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, us
         print("new dims:", raw_nifti_arr.shape, seg_nifti_arr.shape)
 
     for i in range(raw_nifti_arr.shape[0]):
-        if no_empty and np.all(raw_nifti_arr[i] == 0):
+        if (no_empty and np.all(raw_nifti_arr[i] == 0)) or (include_lower == False and i < 300):
             continue
 
 
@@ -547,13 +552,21 @@ def predict_image(img, model, sess):
     pred_classes = np.argmax(prediction[0], axis=2)
     return pred_classes
 
-def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None):
+def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None, predict_lower=True, predict_threshold=0):
     if len(img_arr.shape) == 3:
         img_arr = np.expand_dims(img_arr, axis=3)
     segmented = np.empty(img_arr.shape[:3])
     num_sections = img_arr.shape[0]
     for i in range(num_sections):
         logger.debug("%s", i)
+
+        if not predict_lower and i < predict_threshold and predict_threshold > 0:
+            if crop and orig_dims:
+                segmented[i] = crop_image(img_arr[i], orig_dims[0], orig_dims[1])
+            else:
+                segmented[i] = img_arr[i]
+            continue
+
         pred = predict_image(img_arr[i:i+1], model, sess)
         # print("unique vals before convert: ", np.unique(pred))
         pred = convert_label_vals(pred)
@@ -565,7 +578,7 @@ def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None):
     return segmented
 
 
-def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorient):
+def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorient, predict_lower=True):
     """
     Produce segmentations of arbitrary number of preprocessed scans and save them all as Nifti
     files. Each preprocessed scan should be in separate subfolder. Names of folders containing 
