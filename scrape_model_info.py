@@ -12,7 +12,16 @@ import datetime
 import ast
 
 
-groups_dir = "/media/jessica/Storage1/models/u-net_v1-0/groups_20e"
+groups_dir = "/media/jessica/Storage1/models/u-net_v1-0/groups_17extra"
+
+
+group_whitelist = ['group_1_3',
+
+		  		   'group_2_2', 'group_2_3', 'group_2_4',
+
+		  		   'group_3_2', 'group_3_3', 'group_3_4',
+
+		  		   'group_4_2', 'group_4_3']
 
 
 def main():
@@ -20,7 +29,8 @@ def main():
 	output = open("all_model_info_" + datetime.datetime.now().isoformat(), 'w')
 
 	for group_folder in sorted(os.listdir(groups_dir)):
-			if 'group' not in group_folder:
+			if group_folder not in group_whitelist:
+				print("skipped", group_folder)
 				continue
 
 			output.write("########\n")

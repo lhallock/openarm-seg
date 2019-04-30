@@ -25,8 +25,7 @@ import configparser
 import pickle
 from shutil import copyfile
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
-# from tensorflow.python.client import device_lib
-# local_device_protos = device_lib.list_local_devices()
+
 
 logger = logging.getLogger('__name__')
 stream = logging.StreamHandler(stream=sys.stdout)
@@ -87,13 +86,13 @@ def configure_default_dirs(default_models_dir, default_training_data_dir):
     if default_models_dir:
         config['DEFAULT']['models_dir'] = default_models_dir
     elif 'models_dir' not in config['DEFAULT']:
-        config['DEFAULT']['models_dir'] = '/media/jessica/Storage/models/u-net_v1-0'
+        config['DEFAULT']['models_dir'] = '/media/jessica/Storage1/models/u-net_v1-0'
     logger.info("Default models_dir is now %s.", config['DEFAULT']['models_dir'])
 
     if default_training_data_dir:
         config['DEFAULT']['training_data_dir'] = default_training_data_dir
     elif 'training_data_dir' not in config['DEFAULT']:
-        config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage/pipelinetest/training_data'
+        config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage1/pipelinetest/training_data'
     logger.info("Default training_data_dir is now %s.", config['DEFAULT']['training_data_dir'])
 
     with open('trainingconfig.ini', 'w') as configfile:
@@ -101,8 +100,8 @@ def configure_default_dirs(default_models_dir, default_training_data_dir):
 
 def configure_defaults():
     config = configparser.ConfigParser()
-    config['DEFAULT']['models_dir'] = '/media/jessica/Storage/models/u-net_v1-0'
-    config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage/pipelinetest/training_data'
+    config['DEFAULT']['models_dir'] = '/media/jessica/Storage1/models/u-net_v1-0'
+    config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage1/pipelinetest/training_data'
     config['DEFAULT']['epochs'] = '50'
     config['DEFAULT']['batch_size'] = '1'
     config['DEFAULT']['train_percent'] = '60'
@@ -160,14 +159,17 @@ def save_training_hist(losses, val_accs, test_acc, models_dir, model_name, sessi
     val_accs_path = os.path.join(os.path.join(models_dir, model_name), val_accs_name)
     test_acc_path = os.path.join(os.path.join(models_dir, model_name), test_acc_name)
 
-    # with open(loss_list_path, "wb") as fp:
-    #     pickle.dump(losses, fp)
+    try:     
+        with open(loss_list_path + ".pickle", "wb") as fp:
+            pickle.dump(losses, fp)
 
-    # with open(val_accs_path, "wb") as fp:
-    #     pickle.dump(val_accs, fp)
+        with open(val_accs_path + ".pickle", "wb") as fp:
+            pickle.dump(val_accs, fp)
 
-    # with open(test_acc_path, "wb") as fp:
-    #     pickle.dump(test_acc, fp)
+        with open(test_acc_path + ".pickle", "wb") as fp:
+            pickle.dump(test_acc, fp)
+    except:
+        logger.debug("Error pickling")
 
 
     with open(loss_list_path, 'w') as f:
@@ -211,19 +213,26 @@ def train_model(models_dir,
 
     logger.info("Fetching data.")
 
-    raw_data_lst, seg_data_lst, orig_dims = pipeline.load_all_data(training_data_dir, no_empty=True, reorient=True, predicting=False)
+    # NOTE: There is a potential bug here where the sizes of augmented/nonaugmented data do not match, i.e. one group is  > 512 and one is < 512. This case is (probably) not handled properly. 
 
-    training_height, training_width = raw_data_lst[0].shape[0], raw_data_lst[0].shape[1]
+    raw_data_lst_nonaug, seg_data_lst_nonaug, orig_dims = pipeline.load_all_data(training_data_dir, no_empty=True, reorient=True, predicting=False, include_lower=False, load_augmented=False)
 
-    print("type(seg_data_lst):", type(seg_data_lst))
-    print("type(seg_data_lst[0]):", type(seg_data_lst[0]))
+    raw_data_lst_aug, seg_data_lst_aug, aug_dims = pipeline.load_all_data(training_data_dir, no_empty=True, reorient=True, predicting=False, include_lower=False, load_augmented=True)
 
-    print("len(raw_data_lst), len(seg_data_lst): ", len(raw_data_lst), len(seg_data_lst))
+
+
+    training_height, training_width = raw_data_lst_nonaug[0].shape[0], raw_data_lst_nonaug[0].shape[1]
+
+    print("type(seg_data_lst_nonaug):", type(seg_data_lst_nonaug))
+    print("type(seg_data_lst_nonaug[0]):", type(seg_data_lst_nonaug[0]))
+
+    print("len(raw_data_lst_nonaug), len(seg_data_lst_nonaug): ", len(raw_data_lst_nonaug), len(seg_data_lst_nonaug))
 
     print("training_height, training_width: ", training_height, training_width)
 
-    print("raw_data_lst[0].shape: ", raw_data_lst[0].shape)
-    print("seg_data_lst[0].shape: ", seg_data_lst[0].shape)
+    print("raw_data_lst_nonaug[0].shape: ", raw_data_lst_nonaug[0].shape)
+    print("seg_data_lst_nonaug[0].shape: ", seg_data_lst_nonaug[0].shape)
+
 
 
     logger.debug("ORIG DIMS: %s", orig_dims)
@@ -236,12 +245,41 @@ def train_model(models_dir,
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver(max_to_keep=max_to_keep, keep_checkpoint_every_n_hours=ckpt_n_hours)
 
-    x_train, x_val, x_test, y_train, y_val, y_test = pipeline.split_data(raw_data_lst,
-                                                                         seg_data_lst,
+    x_train, x_val, x_test, y_train, y_val, y_test = pipeline.split_data(raw_data_lst_nonaug,
+                                                                         seg_data_lst_nonaug,
                                                                          train_percent,
                                                                          val_percent,
                                                                          test_percent,
-                                                                         keep_percent)
+                                                                         keep_percent,
+                                                                         total_keep = 500)
+
+
+    if len(raw_data_lst_aug) > 0:
+        logger.debug("Splitting augmented data.")
+        x_train_aug, x_val_aug, x_test_aug, y_train_aug, y_val_aug, y_test_aug = pipeline.split_data(raw_data_lst_aug,
+                                                                                                     seg_data_lst_aug,
+                                                                                                     percent_train = 90,
+                                                                                                     percent_val = 5,
+                                                                                                     percent_test = 5,
+                                                                                                     percent_keep = 100,
+                                                                                                     total_keep = 1000)
+
+        logger.debug("Extending training set.")
+
+        x_train = np.concatenate((x_train, x_train_aug))
+        y_train = np.concatenate((y_train, y_train_aug))
+
+        logger.debug("Generated random indices.")
+
+        indices = np.arange(x_train.shape[0])
+        np.random.shuffle(indices)
+
+        logger.debug("Shuffling training set.")
+
+        x_train = x_train[indices]
+        y_train = y_train[indices]
+
+
 
     logger.info("Training model. Details:")
     logger.info(" * Model name: %s", model_name)

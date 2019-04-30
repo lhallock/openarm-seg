@@ -18,17 +18,8 @@ import Unet
 import logging
 import gc
 
-# Logging setup
-
 logger = logging.getLogger('__name__')
 logger.setLevel(logging.DEBUG)
-
-
-# IMPORTANT TODO: Don't add all-zero cross sections in for training from the processed NIFTIs
-# IMPORTANT TODO: Handle multiple NIFTIs used in training with different dimensions
-
-# TODO: update various package imports, see what can be removed/replaced.
-# TODO: add documentation to functions, especially wrt details of inputs/outputs.
 
 ##################################
 # DATA FUNCTIONS
@@ -52,7 +43,9 @@ def split_data(raw_data, seg_data, percent_train, percent_val, percent_test, per
 
     rand_indices = list(np.random.choice(floor((percent_keep/100)*len(raw_data)), floor((percent_keep/100)*len(raw_data)), replace=False))
 
-    print(rand_indices)
+    
+    logger.debug("Randomizing data sets (in split_data).")
+
     for i in rand_indices[:num_train]:
         x_train.append(raw_data[i])
         y_train.append(seg_data[i])
@@ -93,7 +86,7 @@ def one_hot_encode(L, class_labels):
     # num classes will be 8? but currently dynamically allocated based on num colors in all scans.
     """
     print("L shape:", L.shape)
-    h, w = L.shape  # Should be 482, 395 (unless resized)
+    h, w = L.shape
     try:
         encoded = np.array([list(map(class_labels.index, L.flatten()))])
 
@@ -103,9 +96,9 @@ def one_hot_encode(L, class_labels):
         for i in range(L.shape[0]):
             for j in range(L.shape[1]):
                 Lhot[i,j,L[i,j]] = 1
-        return Lhot  # Should be shape (482, 395, 9)
+        return Lhot
     except Exception as e:
-        print("ONE HOT ENCODE EXCEPTION:", e)
+        print("Error during one hot encoding:", e)
 
 def save_one_hot_encoded(nii_data_arr, class_labels, save_local=False, save_name=None, save_dir=None):
     """
@@ -218,8 +211,6 @@ def check_one_hot(encoded_img):
     return np.all(np.sum(encoded_img, axis=2) == 1.)
 
 def batch_img_resize(images, h = 256, w = 256):
-    # TODO: Determine if this function can be removed or rewritten with
-    # other cropping function
     images_resized = np.zeros([0, newHeight, newWidth], dtype=np.uint8)
     for image in range(images.shape[0]):
         temp = imresize(images[image], [h, w], 'nearest')
@@ -258,112 +249,6 @@ def pad_image(orig_img, height, width):
     
 
     return padded_img
-    
-
-# def load_all_data(processed_data_dir, height=512, width=512, encode_segs=False, use_pre_encoded=True, no_empty=False):
-#     """
-#     Load both the processed, unlabeled data as well as corresponding labeled segmentation data (if it
-#     exists) of all scans in a directory. Can draw from an arbitrary number of scan/segmentation pairs. 
-#     All raw data ends up in the same array, all segmentation data ends up in the same array.
-    
-#     Args:
-#         processed_data_dir (str): Path to directory containing separate folders for the preprocessed
-#             data, where each folder contains all .npz and .png files for one scan. Sub-folder names
-#             expected to resemble e.g. "trial8_30_fs".
-#         height (int): Height in pixels to which scan cross sections get resized.
-#         width (int): Width in pixels to which scan cross sections get resized.
-#         encode_segs (boolean): Flag to determine whether or not to one-hot-encode label arrays.
-#         use_pre_encoded (boolean): Flag to determine if pre-one-hot-encoded label files should be loaded
-#             instead of .png label files.
-            
-#     Returns:
-#         tuple: Tuple of lists of numpy arrays where the first list contains the raw data, is of length 
-#             N (total number of cross sections from all scans), and each element is a numpy array of shape
-#             (height, width). The second list contains the segmented data and is of length N and
-#             contains numpy arrays of shape (height, width, C) where C is the number of
-#             pixel classes. By default C is 9. If one-hot-encoding disabled, second array shape is 
-#             (height, width).
-#     """
-#     raw_images = []
-#     segmentations = []    
-#     scan_paths = []
-    
-#     for folder in os.listdir(processed_data_dir):
-#         if not folder.startswith('.') and 'trial' in folder.lower():
-#             scan_folder_path = os.path.join(processed_data_dir, folder)
-#             scan_paths.append(scan_folder_path)
-    
-#     logger.debug("%s", scan_paths)
-    
-#     for scan_path in scan_paths:
-#         scan_data_raw, scan_data_labels = load_data(scan_path, height, width, encode_segs, use_pre_encoded, no_empty)
-#         raw_images.extend(scan_data_raw)
-#         segmentations.extend(scan_data_labels)
-    
-#     return raw_images, segmentations
-
-# def load_data(processed_data_dir, height=512, width=512, encode_segs=False, use_pre_encoded=True, predicting=False, no_empty=False):
-#     """
-#     Load both the processed, unlabeled data as well as corresponding labeled segmentation data (if it
-#     exists) of a single scan. 
-    
-#     Args:
-#         processed_data_dir (str): Path to directory containing the .npz and .png files for a single scan.
-#             Name of this directory does not matter. Directory should only contain the relevant processed
-#             scan data, not any other files.
-#         height (int): Height in pixels to which scan cross sections get resized.
-#         width (int): Width in pixels to which scan cross sections get resized.
-#         encode_segs (boolean): Flag to determine whether or not to one-hot-encode label arrays.
-    
-#     Returns:
-#         tuple: Tuple of lists of numpy arrays where the first list contains the raw data, is of length 
-#             N (total number of cross sections from all scans), and each element is a numpy array of shape
-#             (height, width). The second list contains the segmented data and is of length N and
-#             contains numpy arrays of shape (height, width, C) where C is the number of
-#             pixel classes. By default C is 9. If one-hot-encoding disabled, second array shape is 
-#             (height, width).
-    
-#     """
-#     default_raw_pixel_classes = [0, 7, 8, 9, 45, 51, 52, 53, 68]
-#     raw_images = []
-#     segmentations = []    
-#     scan_files = []
-    
-#     logger.debug("====")
-#     logger.debug(processed_data_dir)
-#     logger.debug("====")
-    
-#     for item in os.listdir(processed_data_dir):
-#         item_path = os.path.join(processed_data_dir, item)
-#         if os.path.isfile(item_path) and not item.startswith('.'):
-#             scan_files.append(item)
-        
-#     scan_files = sorted(scan_files)
-    
-#     for file in scan_files:
-#         # logger.debug(file)
-#         if 'enc' in file and use_pre_encoded:
-#             img = load_compressed_npz(os.path.join(processed_data_dir, file))
-#             # if predicting:
-#             #     print("IMAGE SHAPE:", img.shape)
-#             #     img = pad_image(img, height, width)
-#             segmentations.append(img)
-#             continue
-#         elif 'label' in file and not use_pre_encoded:
-#             img = imread(os.path.join(processed_data_dir, file), flatten=True)
-#             if predicting:
-#                 img = pad_image(img, height, width)
-#             if encode_segs:
-#                 img = one_hot_encode(img, default_raw_pixel_classes)
-#             segmentations.append(img)
-#             continue
-#         elif 'raw' in file:
-#             img = load_sparse_csr(os.path.join(processed_data_dir, file)).toarray()
-#             if predicting:
-#                 img = pad_image(img, height, width)
-#             raw_images.append(img)
-        
-#     return raw_images, segmentations
 
 
 def find_training_dim(scan_paths):
@@ -373,23 +258,22 @@ def find_training_dim(scan_paths):
     for scan_path in scan_paths:
         print("curr scan_path:", scan_path)
         for item in os.listdir(scan_path):
-            # Assume any non hidden file in the scan path is a nifti we're looking for. Set directories right
-            # so this is true.
+            # Assume any non hidden file in the scan path is a nifti we're looking for. Set directories so this is true.
             item_path = os.path.join(scan_path, item)
             print(item_path)
             if os.path.isfile(item_path) and not item.startswith('.'):
                 nifti = nib.load(item_path)
-                # nifti = nib.load(item_path)
                 nifti_shape = nifti.get_fdata().shape
-                # Second largest
-                curr_max = sorted(nifti_shape, reverse=True)[1]
+                curr_max = sorted(nifti_shape, reverse=True)[1] # Second largest
                 if curr_max > max_dim:
                     max_dim = curr_max
     gc.collect()
-    print("max dim is: ", max_dim)
+    print("the max dim is: ", max_dim)
+
+    # return 512 if max_dim <= 512 else 1024
     return max_dim
 
-def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empty=False, reorient=True, predicting=False):
+def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empty=False, reorient=True, predicting=False, include_lower=True, load_augmented=False):
     raw_images = []
     segmentations = []    
     scan_paths = []
@@ -397,34 +281,39 @@ def load_all_data(training_dir, encode_segs=False, use_pre_encoded=True, no_empt
     print(os.listdir(training_dir))
     for folder in os.listdir(training_dir):
         if os.path.isdir(os.path.join(training_dir, folder)) and not folder.startswith('.') and 'trial' in folder.lower():
-            scan_folder_path = os.path.join(training_dir, folder)
-            scan_paths.append(scan_folder_path)
+            if folder.lower().endswith("_ed") or folder.lower().endswith("_rot"):
+                if load_augmented:
+                    scan_folder_path = os.path.join(training_dir, folder)
+                    scan_paths.append(scan_folder_path)
+                else:
+                    continue
+            else:
+                if not load_augmented:
+                    scan_folder_path = os.path.join(training_dir, folder)
+                    scan_paths.append(scan_folder_path)
+                else:
+                    continue
+
     
     logger.debug("%s", scan_paths)
 
-    training_dim = 2 ** (ceil(log(find_training_dim(scan_paths), 2)))
-    
-    
-    # >>>>>>>>>>>>>>>>>>>>>> FOR DEBUGGING PURPOSES, JUST USE MAX DIM <<<<<<<<<<<<<<<<<<<<<<<<<<<<
-    #training_dim = find_training_dim(scan_paths)
+    if len(scan_paths) == 0:
+        return [], [], None
+
+    max_dim = find_training_dim(scan_paths)
+
+    training_dim = 512 if max_dim <= 512 else 1024
     
     for scan_path in scan_paths:
-        scan_data_raw, scan_data_labels, orig_dims = load_data(scan_path, reorient, training_dim, training_dim, encode_segs, use_pre_encoded, no_empty, predicting)
+        scan_data_raw, scan_data_labels, orig_dims = load_data(scan_path, reorient, training_dim, training_dim, encode_segs, use_pre_encoded, no_empty, predicting, include_lower)
         raw_images.extend(scan_data_raw)
         segmentations.extend(scan_data_labels)
-
-    """
-    The following is a test implementation for h5py, aims to store our large dataset in a manner that we can access without running out of memory. 
-    fullFile = h5py.File("fullFile.hdf5", "w") # somehow we need to make this filename unique to our segmentation
-    
-    """
     
     return raw_images, segmentations, orig_dims
 
 
 def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, use_pre_encoded=True, no_empty=False, predicting=False, include_lower=True):
-    # ASSUMPTION: Apply same transformation to all niftis to get proper orientation, that is, swap (x, y) dimensions. 
-    # HARDCODE in the label casts
+    # Label casting is done to attempt to fix mislabeling of one class. 
     label_cast_source = 1
     label_cast_dest = 7
     default_raw_pixel_classes = [0, 7, 8, 9, 45, 51, 52, 53, 68]
@@ -437,26 +326,26 @@ def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, us
     logger.debug(nifti_training_dir)
     logger.debug("====")
     
-    # Get all nifti arr data, sort into raw and seg
-
     raw_nifti_arr = None
-    seg_nifti_arr = None
+    if predicting:
+        seg_nifti_arr = np.empty((1,1,1))
+    else:
+        seg_nifti_arr = None
 
     for item in os.listdir(nifti_training_dir):
         item_path = os.path.join(nifti_training_dir, item)
         if os.path.isfile(item_path) and not item.startswith('.'):
             if 'vol' in item:
                 raw_nifti_arr = load_nifti_data(item_path)
-            elif 'seg' in item:
+            elif 'seg' in item and not predicting:
                 seg_nifti_arr = load_nifti_data(item_path)
-
-    # encode and pad data, put into raw_images, segmentations
     
     raw_nifti_arr = np.rint(raw_nifti_arr).astype(int)
     seg_nifti_arr = np.rint(seg_nifti_arr).astype(int)
 
     orig_dims = raw_nifti_arr.shape
-    # TRANSFORMATION ASSUMPTION
+    # ASSUMPTION: Apply same transformation to all niftis to get proper orientation, that is, swap (x, y) dimensions. This is to match the orientation of our new data
+    # to previous data. Reorienting is not required in general.
     if reorient:
         print("reorienting")
         print("before dims:", raw_nifti_arr.shape, seg_nifti_arr.shape)
@@ -464,10 +353,14 @@ def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, us
         seg_nifti_arr = np.swapaxes(seg_nifti_arr, 0, 2)
         print("new dims:", raw_nifti_arr.shape, seg_nifti_arr.shape)
 
-    for i in range(raw_nifti_arr.shape[0]):
-        if (no_empty and np.all(raw_nifti_arr[i] == 0)) or (include_lower == False and i < 300):
-            continue
+    if not include_lower:
+        raw_nifti_arr = raw_nifti_arr[raw_nifti_arr.shape[0]-650:]
+        seg_nifti_arr = seg_nifti_arr[seg_nifti_arr.shape[0]-650:]
 
+    for i in range(raw_nifti_arr.shape[0]):
+        if (no_empty and np.all(raw_nifti_arr[i] == 0)):
+            logger.debug("Slice skipped due to being empty: %s", i)
+            continue
 
         print("Padding and encoding from", nifti_training_dir, ":", i)
         raw_images.append(pad_image(raw_nifti_arr[i], height, width))
@@ -484,8 +377,6 @@ def load_data(nifti_training_dir, reorient, height, width, encode_segs=False, us
     return raw_images, segmentations, orig_dims
 
 
-# LIKELY the function you need if you get the error "1 is not in list"
-# This function casts incorrectly labeled segmentations to the desired label number 
 def cast_label_numbers(seg_image_slice, src, dst):
     np.place(seg_image_slice, seg_image_slice == src, dst)
     return seg_image_slice
@@ -500,6 +391,7 @@ def save_arr_as_nifti(arr, orig_nifti_name, save_name, nii_data_dir, save_dir):
     '''
     orig_nifti_name should include file extension .nii.
     '''
+
     original_vol_path = os.path.join(nii_data_dir, orig_nifti_name)
     original_vol = nib.load(original_vol_path)
     new_header = original_vol.header.copy()
@@ -507,6 +399,7 @@ def save_arr_as_nifti(arr, orig_nifti_name, save_name, nii_data_dir, save_dir):
     if not (os.path.exists(save_dir) and os.path.isdir(save_dir)):
         os.mkdir(save_dir)
     save_path = os.path.join(save_dir, save_name)
+
     nib.save(new_nifti, save_path)
 
 def get_orig_nifti_name(trial_name, nii_data_dir, identifier):
@@ -545,31 +438,35 @@ def reorient_nifti_arr(nifti_arr):
 # PREDICTION FUNCTIONS
 ##################################
 
-# TODO: Make resulting prediction label consistent with original label colorings.
-
 def predict_image(img, model, sess):
     prediction = model.predict(sess, img)
     pred_classes = np.argmax(prediction[0], axis=2)
     return pred_classes
 
-def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None, predict_lower=True, predict_threshold=0):
+def predict_whole_seg(img_arr, model, sess, crop=False, orig_dims=None, predict_lower=True):
     if len(img_arr.shape) == 3:
         img_arr = np.expand_dims(img_arr, axis=3)
     segmented = np.empty(img_arr.shape[:3])
+
+    logger.debug("imr_arr shape: %s", img_arr.shape)
+    logger.debug("segmented arr shape: %s", segmented.shape)
     num_sections = img_arr.shape[0]
+
+    lower_bound = (img_arr.shape[0] - 650) if not predict_lower else 0
+
+    blank_slice = np.zeros(segmented[0].shape)
+
+    logger.debug("blank slice shape: %s", blank_slice.shape)
+
     for i in range(num_sections):
         logger.debug("%s", i)
 
-        if not predict_lower and i < predict_threshold and predict_threshold > 0:
-            if crop and orig_dims:
-                segmented[i] = crop_image(img_arr[i], orig_dims[0], orig_dims[1])
-            else:
-                segmented[i] = img_arr[i]
-            continue
-
-        pred = predict_image(img_arr[i:i+1], model, sess)
+        if i > lower_bound:
+            pred = predict_image(img_arr[i:i+1], model, sess)
+            pred = convert_label_vals(pred)
+        else:
+            pred = blank_slice
         # print("unique vals before convert: ", np.unique(pred))
-        pred = convert_label_vals(pred)
         # print("unique vals after convert: ", np.unique(pred))
         if crop and orig_dims:
             segmented[i] = crop_image(pred, orig_dims[0], orig_dims[1])
@@ -604,19 +501,22 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorie
         trial_name = trials[i]
 
         orig_nifti_name = get_orig_nifti_name(trial_name, nii_data_dir, 'volume')
+        logger.debug("orig_nifti: %s", orig_nifti_name)
 
         logger.debug("trial_name = %s", trial_name)
 
-        # logger.debug("orig_nifti_name = %s", orig_nifti_name)
+        if os.path.isfile(os.path.join(save_dir, trial_name + "_pred_seg.nii")):
+            logger.debug("skipped %s due to preexisting prediction", trial_name)
+            continue
 
-        # nifti_arr = load_nifti_data(scan_path)
-        training_dim = 2 ** (ceil(log(find_training_dim([scan_path]), 2)))
+        max_dim = find_training_dim([scan_path])
+        training_dim = 512 if max_dim <= 512 else 1024
 
         raw_scan_data, ignore, orig_dims = load_data(scan_path, reorient, training_dim, training_dim, encode_segs=False, predicting=True, no_empty=False)
         logger.debug("%s: %d", scan_path, len(raw_scan_data))
         raw_scan_data_arr = np.asarray(raw_scan_data)
         logger.debug("Predicting segmentation for %s", trial_name)
-        pred_seg = predict_whole_seg(raw_scan_data_arr, model, sess)
+        pred_seg = predict_whole_seg(raw_scan_data_arr, model, sess, predict_lower=predict_lower)
 
         print("orig dims:", orig_dims)
         print("pred_seg dims:", pred_seg.shape)
@@ -638,56 +538,9 @@ def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorie
 
         pred_seg = np.rint(pred_seg)
 
-        # pred_seg[pred_seg == 6] = 7
-
-
         save_name = trial_name + '_pred_seg.nii'
 
-
-
         save_arr_as_nifti(pred_seg, orig_nifti_name, save_name, nii_data_dir, save_dir)
-
-# def predict_all_segs(to_segment_dir, save_dir, nii_data_dir, model, sess, reorient):
-#     """
-#     Produce segmentations of arbitrary number of preprocessed scans and save them all as Nifti
-#     files. Each preprocessed scan should be in separate subfolder. Names of folders containing 
-#     scan data should start with "trial".
-#     """
-#     scan_paths = []
-#     trials = []
-    
-#     for folder in os.listdir(to_segment_dir):
-#         logger.debug(folder)
-#         if folder.startswith('trial'):
-#             scan_path = os.path.join(to_segment_dir, folder)
-#             scan_paths.append(scan_path)
-#             trials.append(folder)
-    
-#     logger.debug("")
-#     logger.debug("trials found: %s", trials)
-#     logger.debug("====")
-
-#     for i in range(len(scan_paths)):
-
-#         scan_path = scan_paths[i]
-#         trial_name = trials[i]
-
-#         orig_nifti_name = get_orig_nifti_name(trial_name, nii_data_dir, 'volume')
-
-#         logger.debug("trial_name = %s", trial_name)
-
-#         logger.debug("orig_nifti_name = %s", orig_nifti_name)
-
-#         if orig_nifti_name is not None:
-#             raw_scan_data, ignore = load_data(scan_path, encode_segs=False, predicting=True)
-#             logger.debug("%s: %d", scan_path, len(raw_scan_data))
-#             raw_scan_data_arr = np.asarray(raw_scan_data)
-#             orig_raw_scan_shape = raw_scan_data.shape
-#             logger.debug("Predicting segmentation for %s", trial_name)
-#             pred_seg = predict_whole_seg(raw_scan_data_arr, model, sess)
-#             save_name = trial_name + '_pred_seg.nii'
-
-#             save_arr_as_nifti(pred_seg, orig_nifti_name, save_name, nii_data_dir, save_dir)
         
 ##################################
 # MODEL HANDLING

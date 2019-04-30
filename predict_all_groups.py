@@ -25,21 +25,37 @@ import logging
 import time
 
 
-over_512_configs = [("/media/jessica/Storage/SubB/prediction_sources/over_512", "/media/jessica/Storage/SubB/predictions/over_512", "/media/jessica/Storage/SubB/all_nifti")]
-under_512_configs = [("/media/jessica/Storage/SubB/prediction_sources/under_512", "/media/jessica/Storage/SubB/predictions/under_512", "/media/jessica/Storage/SubB/all_nifti"),
-					  ("/media/jessica/Storage/SubF/prediction_sources/under_512", "/media/jessica/Storage/SubF/predictions/under_512", "/media/jessica/Storage/SubF/all_nifti"),
-					  ("/media/jessica/Storage/SubG/prediction_sources/under_512", "/media/jessica/Storage/SubG/predictions/under_512", "/media/jessica/Storage/SubG/all_nifti"),
-					  ("/media/jessica/Storage/SubH/prediction_sources/under_512", "/media/jessica/Storage/SubH/predictions/under_512", "/media/jessica/Storage/SubH/all_nifti")]
+over_512_configs = [("/media/jessica/Storage1/SubB/prediction_sources/over_512", "/media/jessica/Storage1/SubB/predictions/over_512", "/media/jessica/Storage1/SubB/all_nifti"),
+					("/media/jessica/Storage1/SubC/prediction_sources/over_512", "/media/jessica/Storage1/SubC/predictions/over_512", "/media/jessica/Storage1/SubC/all_nifti"),
+					("/media/jessica/Storage1/SubJ/prediction_sources/over_512", "/media/jessica/Storage1/SubJ/predictions/over_512", "/media/jessica/Storage1/SubJ/all_nifti"),
+					("/media/jessica/Storage1/SubK/prediction_sources/over_512", "/media/jessica/Storage1/SubK/predictions/over_512", "/media/jessica/Storage1/SubK/all_nifti")]
 
-# over_512_configs = []
+under_512_configs = [("/media/jessica/Storage1/SubA/prediction_sources/under_512", "/media/jessica/Storage1/SubA/predictions/under_512", "/media/jessica/Storage1/SubA/all_nifti"),
+					 ("/media/jessica/Storage1/SubB/prediction_sources/under_512", "/media/jessica/Storage1/SubB/predictions/under_512", "/media/jessica/Storage1/SubB/all_nifti"),
+					 ("/media/jessica/Storage1/SubC/prediction_sources/under_512", "/media/jessica/Storage1/SubC/predictions/under_512", "/media/jessica/Storage1/SubC/all_nifti"),
+					 ("/media/jessica/Storage1/SubD/prediction_sources/under_512", "/media/jessica/Storage1/SubD/predictions/under_512", "/media/jessica/Storage1/SubD/all_nifti"),
+					 ("/media/jessica/Storage1/SubE/prediction_sources/under_512", "/media/jessica/Storage1/SubE/predictions/under_512", "/media/jessica/Storage1/SubE/all_nifti"),
+					 ("/media/jessica/Storage1/SubF/prediction_sources/under_512", "/media/jessica/Storage1/SubF/predictions/under_512", "/media/jessica/Storage1/SubF/all_nifti"),
+					 ("/media/jessica/Storage1/SubG/prediction_sources/under_512", "/media/jessica/Storage1/SubG/predictions/under_512", "/media/jessica/Storage1/SubG/all_nifti"),
+					 ("/media/jessica/Storage1/SubH/prediction_sources/under_512", "/media/jessica/Storage1/SubH/predictions/under_512", "/media/jessica/Storage1/SubH/all_nifti"),
+					 ("/media/jessica/Storage1/SubI/prediction_sources/under_512", "/media/jessica/Storage1/SubI/predictions/under_512", "/media/jessica/Storage1/SubI/all_nifti"),
+					 ("/media/jessica/Storage1/SubJ/prediction_sources/under_512", "/media/jessica/Storage1/SubJ/predictions/under_512", "/media/jessica/Storage1/SubJ/all_nifti"),
+					 ("/media/jessica/Storage1/SubK/prediction_sources/under_512", "/media/jessica/Storage1/SubK/predictions/under_512", "/media/jessica/Storage1/SubK/all_nifti"),]
 
-# under_512_configs = [("/media/jessica/Storage/SubF/prediction_sources/under_512", "/media/jessica/Storage/SubF/predictions/under_512", "/media/jessica/Storage/SubF/all_nifti"),
-# 					  ("/media/jessica/Storage/SubG/prediction_sources/under_512", "/media/jessica/Storage/SubG/predictions/under_512", "/media/jessica/Storage/SubG/all_nifti")]
+
+group_whitelist = ['group_1_1_final_sub', 'group_1_4_final_sub', 'group_1_5_final_sub',
+
+		  		   'group_2_5_final_sub', 'group_2_6_final_sub',
+
+		  		   'group_3_2_final_sub', 'group_3_3_final_sub', 'group_3_4_final_sub',
+
+		  		   'group_4_4_final_sub', 'group_4_5_final_sub']
+
 
 def main():
 	args = sys.argv[1:]
 
-	models_dir = args[0] if len(args) != 0 else "/media/jessica/Storage/models/u-net_v1-0"
+	models_dir = args[0] if len(args) != 0 else "/media/jessica/Storage1/models/u-net_v1-0/groups_final_sub"
 
 	group_folders = []
 
@@ -52,6 +68,10 @@ def main():
 	time.sleep(5)
 
 	for group in group_folders:
+		if group not in group_whitelist:
+			print("skipped", group)
+			continue
+
 		print(group)
 		for size in [512, 1024]:
 			tf.reset_default_graph()
@@ -65,7 +85,7 @@ def main():
 			pipeline.load_model(models_dir, group, saver, sess)
 
 			for config in configs:
-				pipeline.predict_all_segs(config[0], config[1] + "/" + group, config[2], model, sess, True)
+				pipeline.predict_all_segs(config[0], config[1] + "/" + group, config[2], model, sess, reorient = True, predict_lower = False)
 
 
 

@@ -1,0 +1,11 @@
+python generate_accuracy_table.py mean_iou
+
+python generate_accuracy_table.py total_percent
+
+python generate_accuracy_table.py bicep_iou
+
+python generate_accuracy_table.py bicep_percent
+
+python generate_accuracy_table.py humerus_iou
+
+python generate_accuracy_table.py humerus_percent

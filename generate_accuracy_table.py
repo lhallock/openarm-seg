@@ -14,6 +14,7 @@ import time
 import datetime
 import nibabel as nib
 from prettytable import PrettyTable
+import sys
 
 
 base_path = "/media/jessica/Storage1/"
@@ -55,21 +56,14 @@ trial_mapping =	{'trial1B' : 1,
 				 'trial19B' : 26,
 				 'trial20B' : 27}
 
-groups = ['group_1_1', 'group_1_2', 'group_1_3', 'group_1_4',
+groups = 		  ['group_1_1_final_sub', 'group_1_4_final_sub', 'group_1_5_final_sub',
 
-		  'group_2_1', 'group_2_2', 'group_2_3', 'group_2_4',
+		  		   'group_2_5_final_sub', 'group_2_6_final_sub',
 
-		  'group_3_1', 'group_3_2', 'group_3_3', 'group_3_4',
+		  		   'group_3_2_final_sub', 'group_3_3_final_sub', 'group_3_4_final_sub',
 
-		  'group_4_1', 'group_4_2', 'group_4_3', 'group_4_4',
+		  		   'group_4_4_final_sub', 'group_4_5_final_sub']
 
-		  'group_5_1', 'group_5_2', 'group_5_3', 'group_5_4',
-
-		  'group_6_1', 'group_6_2', 'group_6_3', 'group_6_4', 'group6_5',
-
-		  'group_7_1', 'group_7_2', 'group_7_3', 'group_7_4',
-
-		  'group_8_1', 'group_8_2']
 
 def main():
 	table = PrettyTable()
@@ -84,18 +78,27 @@ def main():
 	for sub in subjects:
 		for size_dir in size_dirs:
 			groups_path = base_path + "Sub" + sub + "/predictions/" + size_dir
-			groups_with_preds = sorted(os.listdir(groups_path))
+			groups_with_preds = sorted(os.listdir(groups_path))[::-1]
 
 			ground_truth_path = base_path + "Sub" + sub + "/prediction_sources/" + size_dir
 
 			print(groups_path)
 			print(ground_truth_path)
 			for curr_group in groups_with_preds:
+				if not curr_group in groups:
+					print("\tSkipped", curr_group)
+					continue
+
 				print("\t", curr_group)
 				predictions_path = os.path.join(groups_path, curr_group)
 				for pred_seg_name in os.listdir(predictions_path):
-					print("\t\t", pred_seg_name)
-					prediction_data = np.rint(nib.load(os.path.join(predictions_path, pred_seg_name)).get_fdata())
+					print("\t\t", pred_seg_name, end=' ')
+
+					prediction_data = nib.load(os.path.join(predictions_path, pred_seg_name)).get_fdata()
+					prediction_data = np.swapaxes(prediction_data, 0, 2)
+					prediction_data = prediction_data[prediction_data.shape[0]-650:]
+					prediction_data = np.rint(prediction_data)
+
 					ground_truth_data = None
 
 					trial_name = pred_seg_name.split("_")[0]
@@ -108,11 +111,33 @@ def main():
 							for nifti_name in os.listdir(trial_path):
 								if 'seg' in nifti_name:
 									target_ground_truth = nifti_name
-									ground_truth_data = np.rint(nib.load(os.path.join(trial_path, target_ground_truth)).get_fdata())
 
-					acc_val = average_iou_accuracy(prediction_data, ground_truth_data)
+									ground_truth_data = nib.load(os.path.join(trial_path, target_ground_truth)).get_fdata()
+									ground_truth_data = np.swapaxes(ground_truth_data, 0, 2)
+									ground_truth_data = ground_truth_data[ground_truth_data.shape[0]-650:]
+									ground_truth_data = np.rint(ground_truth_data)
 
-					# find place to put accuracy value in table
+
+					acc_val = 0
+					acc_sel = sys.argv[1]
+					if acc_sel == 'mean_iou':
+						acc_val = average_iou_accuracy(prediction_data, ground_truth_data)
+					elif acc_sel == 'total_percent':
+						acc_val = percent_correct(prediction_data, ground_truth_data)
+					elif acc_sel == 'bicep_iou':
+						acc_val = bicep_iou(prediction_data, ground_truth_data)
+					elif acc_sel == 'bicep_percent':
+						acc_val = bicep_percent(prediction_data, ground_truth_data)
+					elif acc_sel == 'humerus_iou':
+						acc_val = humerus_iou(prediction_data, ground_truth_data)
+					elif acc_sel == 'humerus_percent':
+						acc_val = humerus_percent(prediction_data, ground_truth_data)
+					else:
+						raise ValueError('Invalid accuracy metric selection.')
+
+					print(acc_val)
+
+					# Find place to put accuracy value in table
 					target_row = 0
 					target_col = trial_mapping[trial_name + sub]
 					for row in range(len(table_data)):
@@ -127,21 +152,51 @@ def main():
 	for row in table_data:
 		table.add_row(row)
 
-	save_table(table)
+	save_table(table, table_data, acc_sel)
 
 
-
-def save_table(table):
+def save_table(table, table_data, metric):
 	table_str = table.get_string()
-	save_name = "accuracy_table_" + datetime.datetime.now().isoformat()
+	save_name = "accuracy_table_" + metric + datetime.datetime.now().isoformat()
 
 	with open(save_name,'w') as file:
 		file.write(table_str)
 
-	with open(save_name + ".pickle", 'wb') as handle:
-		pickle.dump(table_str, handle, protocol=pickle.HIGHEST_PROTOCOL)
+	with open(save_name + "_data.pickle", 'wb') as handle:
+		pickle.dump(table_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
+def bicep_percent(prediction, reference):
+	total_bicep = np.sum(reference == 52)
+	prediction[prediction != 52] = 0
+	reference[reference != 52] = 0
+
+	return np.sum(np.logical_and(prediction, reference)) / total_bicep
+
+
+def bicep_iou(prediction, reference):
+    prediction_52 = (prediction == 52) * 52
+    reference_52 = (reference == 52) * 52
+
+    iou_52 = iou_accuracy(prediction_52, reference_52)
+
+    return iou_52
+
+
+def humerus_percent(prediction, reference):
+	total_humerus = np.sum(reference == 7)
+	prediction[prediction != 7] = 0
+	reference[reference != 7] = 0
+
+	return np.sum(np.logical_and(prediction, reference)) / total_humerus
+
+def humerus_iou(prediction, reference):
+    prediction_7 = (prediction == 7) * 7
+    reference_7 = (reference == 7) * 7
+
+    iou_7 = iou_accuracy(prediction_7, reference_7)
+
+    return iou_7
 
 def percent_correct(prediction, reference):
     return np.sum(prediction == reference) / reference.size
