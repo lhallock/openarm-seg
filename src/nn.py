@@ -2,16 +2,8 @@ from __future__ import division, print_function, absolute_import
 import tensorflow as tf
 import numpy as np
 import timeit
-import random
 import os
-
-from skimage.draw import circle
-from skimage.filters import sobel
 from collections import deque
-from sklearn.metrics import confusion_matrix
-from scipy.misc import imread, imresize
-from scipy.ndimage import rotate
-from scipy.ndimage.filters import gaussian_filter
 ############################
 # Neural Network Functions #
 ############################

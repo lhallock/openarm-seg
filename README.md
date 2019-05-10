@@ -2,7 +2,15 @@
 
 This repo contains the code used in the development of the OpenArm 2.0 data set, a set of volumetric scans of the human arm. Contained in the repo are various scripts that can be used to train a U-Net model on volumetric ultrasound data, generate predictions on a large dataset, and collect information about the quality of the predictions.
 
-## Overview
+If you use this code for academic purposes, please cite the following publication: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics," in International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC), IEEE, 2019. \*equal contribution
+
+## Installation
+
+The following Python modules are required to run this code: `numpy`, `tensorflow`, `os`, `sys`, `math`, `logging`, `argparse`, `configparser`, `pickle`, `shutil`, `nibabel`, `scipy`, `gc`, `time`, `timeit`, `collections`.
+
+
+
+## Setup
 
 Most of the scripts provided here assume that you have source data in the following directory structure somewhere on your machine:
 

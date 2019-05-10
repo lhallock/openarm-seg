@@ -1,22 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import tensorflow as tf
-import random
 import os
 import sys
-import itertools
 sys.path.append('src/')
 import nn
-import process_data
-import nibabel as nib
 from math import floor, ceil
-from sklearn.metrics import confusion_matrix
-import scipy.sparse
-from scipy.misc import imrotate, imresize
-from scipy.ndimage.filters import gaussian_filter
-from scipy.ndimage import rotate
-from skimage import exposure
-from skimage.io import imread, imsave
 import pipeline
 import Unet
 import logging

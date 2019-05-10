@@ -2,21 +2,16 @@ import os
 from math import floor, ceil, log
 import numpy as np
 import tensorflow as tf
-import random
 import sys
 sys.path.append('src/')
 import nn
 import nibabel as nib
-from sklearn.metrics import confusion_matrix
 import scipy.sparse
-from scipy.misc import imrotate, imresize
-from scipy.ndimage.filters import gaussian_filter
-from scipy.ndimage import rotate
-from skimage import exposure
-from skimage.io import imread, imsave
+from scipy.misc import imresize
 import Unet
 import logging
 import gc
+
 
 logger = logging.getLogger('__name__')
 logger.setLevel(logging.DEBUG)
