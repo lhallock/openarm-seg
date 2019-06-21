@@ -74,13 +74,13 @@ def configure_default_dirs(default_models_dir, default_training_data_dir):
     if default_models_dir:
         config['DEFAULT']['models_dir'] = default_models_dir
     elif 'models_dir' not in config['DEFAULT']:
-        config['DEFAULT']['models_dir'] = '/media/jessica/Storage1/models/u-net_v1-0'
+        config['DEFAULT']['models_dir'] = '/models_dir'
     logger.info("Default models_dir is now %s.", config['DEFAULT']['models_dir'])
 
     if default_training_data_dir:
         config['DEFAULT']['training_data_dir'] = default_training_data_dir
     elif 'training_data_dir' not in config['DEFAULT']:
-        config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage1/pipelinetest/training_data'
+        config['DEFAULT']['training_data_dir'] = '/training_data_dir'
     logger.info("Default training_data_dir is now %s.", config['DEFAULT']['training_data_dir'])
 
     with open('trainingconfig.ini', 'w') as configfile:
@@ -88,8 +88,8 @@ def configure_default_dirs(default_models_dir, default_training_data_dir):
 
 def configure_defaults():
     config = configparser.ConfigParser()
-    config['DEFAULT']['models_dir'] = '/media/jessica/Storage1/models/u-net_v1-0'
-    config['DEFAULT']['training_data_dir'] = '/media/jessica/Storage1/pipelinetest/training_data'
+    config['DEFAULT']['models_dir'] = '/models_dir'
+    config['DEFAULT']['training_data_dir'] = '/training_data_dir'
     config['DEFAULT']['epochs'] = '50'
     config['DEFAULT']['batch_size'] = '1'
     config['DEFAULT']['train_percent'] = '60'
