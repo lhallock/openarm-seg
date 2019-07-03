@@ -2,7 +2,7 @@
 
 This repo contains the code used in the development of the OpenArm 2.0 data set, a set of volumetric scans of the human arm. Contained in the repo are various scripts that can be used to train a U-Net model on volumetric ultrasound data, generate predictions on a large dataset, and collect information about the quality of the predictions. The code is designed to permit batch training of different network architectures and training data sets to best predict individual subjects of interest.
 
-If you use this code for academic purposes, please cite the following publication: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics," in _International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC)_, IEEE, 2019. \*Equal contribution.
+**If you use this code for academic purposes, please cite the following publication**: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics," in _International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC)_, IEEE, 2019. \*Equal contribution.
 
 This README primarily describes the usage of our CNN-based segmentation methods that are the focus of the publication above. In addition, the code used to perform baseline image registration is included, and its usage is documented in the _Registration-Based Segmentation_ section at the bottom of this page.
 
@@ -80,7 +80,7 @@ Source data and models should be organized in the following directory structure:
 
 Broadly, these directories contain the models used for training (`models`), 3D data and predictions for each target subject (`Sub1`, `Sub2`,...), and data used for training each specified network configuration (`training_groups`).
 
-While some simpler training functionality can be executed without this structure --- and some aspects of this structure are more fungible than others --- it is necessary for scripts that automate training multiple models, generating segmentations of multiple images over multiple models, and scraping data from trained models or generated segmentations.
+While some simpler training functionality can be executed without this structure — and some aspects of this structure are more fungible than others — it is necessary for scripts that automate training multiple models, generating segmentations of multiple images over multiple models, and scraping data from trained models or generated segmentations.
 
 Each directory is described in further detail below.
 
@@ -101,9 +101,9 @@ particular "group" (for which models and training data sources are
 specified in `trainingconfig.ini`), these prediction files are written
 into corresponding subfolders within each `predictions` folder.
 
-Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions: scans smaller than 512x512 are passed directly through the network, while those larger are first cropped, and must thus be resized when reassembled into the final predicted NiFTI. The full pipeline places them into separate folders, though this can easily be modified if desired.
+Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions: scans smaller than 512x512 are passed directly through the network, while those larger are first cropped, and must thus be resized when reassembled into the final predicted NIfTI. The full pipeline places them into separate folders, though this can easily be modified if desired.
 
-Each subject's `prediction_sources` folder contains... (TODO)
+Each subject's `prediction_sources` folder contains... (**TODO**)
 
 To predict segmentations for the available OpenArm 2.0 scans, first download all desired subject archives from the [project website](https://simtk.org/frs/?group_id=1617). All volume files for which predictions are desired (`Sub[x]/volumes/*_volume.mha`) should then be converted to the NIfTI file format (e.g., using [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php), renamed to follow convention `trial[n]_*_volume.nii`, and placed in the `all_nifti` folder. Available ground truth scans (`Sub[x]/ground_segs/*.nii` may also be placed in this folder if available. 
 
@@ -153,19 +153,33 @@ group_1
 │       └── trial6_30_fs_volume_ed.nii
 ```
 
-Each `group_[j]_[k]` folder contains all data used for training that group, structured as a series of subfolders, each containing a single 3D volumetric scan and its associated segmentation. In general, structure below each `group_[j]_[k]` subfolder is not important, only that all volumes and their corresponding segmentations are included. TODO: Are the trial prefixes important? Are the subfolders with a single volume and segmentation important? How do you tell the difference between vol and seg? Suffix?
+Each `group_[j]_[k]` folder contains all data used for training that group, structured as a series of subfolders, each containing a single 3D volumetric scan and its associated segmentation. In general, structure below each `group_[j]_[k]` subfolder is not important, only that all volumes and their corresponding segmentations are included. **TODO**: Are the trial prefixes important? Are the subfolders with a single volume and segmentation important? How do you tell the difference between vol and seg? Suffix?
 
 ## Model Training 
 
 ### Training a Single Model
 
-To train a model, first step up a directory containing the segmentations you wish to include for training. See the previous section for details on what structure is expected by the training scripts.
+To train a model, first ensure that the `models` and `training_groups` directories are structured as noted above, with the desired model and all desired training data.
 
-You can change the parameters for the training session through a config file `trainingconfig.ini`. If this file does not already exist then you can run the script once to generate it. Two important parameters that are not yet controllable via the config file are the total number of 2d image slices that will be kept by the script for training. These need to be modified in the source code of `training.py` directly by changing the `total_keep` arguments passed into the two calls to `split_data`. Once you have set up the directory containing your data for training and you have the configuration file, create a section in the configuration file for your model. `models_dir` is the directory where the new model folder will be created. `training_data_dir` is the path to the directory where you have set up your desired training data (in the example above this would be the path to `model_1_1`, `model_2_1`, etc). To begin training, call the script from the command line with: `python training.py name_of_your_model -s section_name_in_trainingconfig`. The model name and name of the section in `trainingconfig.ini` do not need to be the same.
+Add an entry to `trainingconfig.ini` (or modify the `DEFAULT` entry), specifying (at minimum) the directories in which the desired model and training data are stored using the appropriate variables. You may safely use the hyperparameters specified in this repository's config file or may specify your own.
+
+Two additional important parameters  may be set by modifying the source code of `training.py` directly. First, the `total_keep` argument of each call to `split_data` specifies the total number of 2D image slices used from each scan (and, for the second call, augmented scan). Note that for general training purposes, these numbers should be set as large as possible; here, they are set relatively low to accommodate fair comparison of training methodologies for our associated publication. **TODO**: what's the second important parameter? also what happens if you set total keep to like a billion?
+
+To begin training, run
+
+```bash
+python training.py [model_name] -s [trainingconfig_section_name]
+```
+
+in terminal, where `[training_config_section_name]` corresponds to the section header of `trainingconfig.ini`, and `[model_name]` may be chosen as desired. **TODO**: is this true?
 
 ### Queuing Training for Multiple Models
 
-To set up training for multiple models at once (that is, train any number of models consecutively), follow the steps above to create the training data directory and training config info for the desired models. Then modify the bash script `trainmultiple.sh`, which is just putting each command for an individual model one after the other.
+To train multiple models consecutively, follow all instructions above for training a single model, including directory setup and the addition of appropriate sections to `trainingconfig.ini`. Second, modify `trainmultiple.sh` to train the specific models desired. (Note that the example script here also contains examples of prediction, which can be eliminated if not necessary.) Training can then be accomplished via
+
+```bash
+sh trainmultiple.sh
+```
 
 ## Predicting Segmentations
 
@@ -179,11 +193,11 @@ The last two modifications of this script that will be necessary in order to run
 
 ## Assessing Segmentation Quality
 
-TODO
+**TODO**
 
 ## Training with Augmented Data
 
-TODO
+**TODO**
 
 ## Registration-Based Segmentation
 
@@ -199,13 +213,13 @@ Use of registration code relies on the `numpy` Python module and the [SimpleElas
 
 Edit the following parameters, at the top of the `run_amsaf` method in `registration.py`:
 
-`verbose` -- set as `True` or `False` based on desired verbosity
+- `verbose` -- set as `True` or `False` based on desired verbosity
 
-`unsegmented_image` -- set as `read_image("[image_to_be_segmented].nii")` based on the file path of the NIfTI to be segmented
+- `unsegmented_image` -- set as `read_image("[image_to_be_segmented].nii")` based on the file path of the NIfTI to be segmented
 
-`segmented_image`, `segmentation` -- set as `read_image("[segmented_image].nii")` based on the file paths of the segmented NIfTI source image and its associated segmentation, respectively
+- `segmented_image`, `segmentation` -- set as `read_image("[segmented_image].nii")` based on the file paths of the segmented NIfTI source image and its associated segmentation, respectively
 
-`new_segmentation` -- set as desired output file name for new segmentation
+- `new_segmentation` -- set as desired output file name for new segmentation
 
 If your segmented and unsegmented images are not already roughly aligned, you may choose to specify a manual affine transformation with which to initialize the registration process by modifying the `A` and `t` parameters.
 
