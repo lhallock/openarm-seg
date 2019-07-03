@@ -86,26 +86,21 @@ Each directory is described in further detail below.
 
 ### Models
 
-TensorFlow model files are stored in the `models` directory. Each subdirectory (e.g., `u-net_v1-0`) should contain all trained models of the same architecture. Inside each subdirectory are folders holding the actual Tensorflow model files, including both specified models and data that is logged during training. For example, `model_1` holds `checkpoint`, `model_1.data`, `model_1.index`, and `model_1.meta`, as well as the other information about the model that is stored during training (i.e., plain text and pickled files with loss per epoch, validation accuracies, etc.). Models can also be organized in a deeper folder structure if desired, provided the directory is properly specified in `trainingconfig.ini`, as described in the _Model Training_ section below.
+TensorFlow model files are stored in the `models` directory. Each subdirectory (e.g., `u-net_v1-0`) contains all trained models of the same architecture. Inside each subdirectory are folders holding the actual Tensorflow model files, including both specified models and data that is logged during training. For example, `model_1` holds `checkpoint`, `model_1.data`, `model_1.index`, and `model_1.meta`, as well as the other information about the model that is stored during training (i.e., plain text and pickled files with loss per epoch, validation accuracies, etc.). Models can also be organized in a deeper folder structure if desired, provided the directory is properly specified in `trainingconfig.ini`, as described in the _Model Training_ section below.
 
 Our own pre-trained models used in the publication above are available for download as part of the [OpenArm repository](https://simtk.org/frs/?group_id=1617). Other models may be used as well.
 
 ### Subjects
 
-Subject folders `Sub[x]` contain all volumetric data associated with a given subject, including both raw volumetric scans and those that are populated by the network at prediction time. Subfolder `all_nifti` contains all raw NIfTI scans for which a predicted segmentation is desired (`*_volume.nii`), as well as (if available) ground-truth segmentations for each volume (`*_seg.nii`). The latter can be used to assess prediction quality, as described in _Assessing Segmentation Quality_ below.
+Subject folders `Sub[x]` contain all volumetric data associated with a given subject, including both raw volumetric scans and those that are populated by the network at prediction time. Subfolder `all_nifti` contains all raw NIfTI scans for which a predicted segmentation is desired (which should be formatted as `trial_*_volume.nii`).
 
-Each subject's `predictions` folder is populated at prediction time, though the
-directory itself (and its `over_512` and `under_512` subdirectories) must be
-created in advance. Specifically, when predictions are executed for a
-particular "group" (for which models and training data sources are
-specified in `trainingconfig.ini`), these prediction files are written
-into corresponding subfolders within each `predictions` folder.
+Each subject's `predictions` folder is populated at prediction time, though the directory itself (and its `over_512` and `under_512` subdirectories) must be created in advance. Specifically, when predictions are executed for a particular "group" (for which models and training data sources are specified in `trainingconfig.ini`), these prediction files are written into corresponding subfolders within each `predictions` folder.
 
-Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions: scans smaller than 512x512 are passed directly through the network, while those larger are first cropped, and must thus be resized when reassembled into the final predicted NIfTI. The full pipeline places them into separate folders, though this can easily be modified if desired.
+Each subject's `prediction_sources` folder also contains all raw NifTI scans for which prediction is desired, organized into the same `over_512` and `under_512` directories above, and then subfolders for each trial; this file structure should be created manually before prediction is attempted. Each subfolder must contain, at minimum, the trial's associated volume (`*_volume.nii`). If assessment of segmentation quality will be performed, as described in _Assessing Segmentation Quality_ below, each subfolder should contain the associated ground-truth segmentation as well (`*_seg.nii`). Note that both subfolders and NIfTI files should contain a `trial_` prefix, and volume files should be named identically to their corresponding file in `all_nifti`. (The necessity of both these copies of each file is a redundancy that should be amended in future releases.) Volume filenames should include the characters `vol`, and segmentation filenames should include the characters `seg`.
 
-Each subject's `prediction_sources` folder contains... (**TODO**)
+Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions, which requires them to be padded to a power of two: scans smaller than 512x512 are padded to 512x512, while those larger are padded to 1024x1024. The full pipeline places them into separate folders, as they must be treated separately in the code's current instantiation. **TODO** are they cropped or padded? I thought we were using Sai's crops?
 
-To predict segmentations for the available OpenArm 2.0 scans, first download all desired subject archives from the [project website](https://simtk.org/frs/?group_id=1617). All volume files for which predictions are desired (`Sub[x]/volumes/*_volume.mha`) should then be converted to the NIfTI file format (e.g., using [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php), renamed to follow convention `trial[n]_*_volume.nii`, and placed in the `all_nifti` folder. Available ground truth scans (`Sub[x]/ground_segs/*.nii` may also be placed in this folder if available. 
+To predict segmentations for the available OpenArm 2.0 scans, first download all desired subject archives from the [project website](https://simtk.org/frs/?group_id=1617). All volume files for which predictions are desired (`Sub[x]/volumes/*_volume.mha`) should then be converted to the NIfTI file format (e.g., using [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php), renamed to follow convention `trial[n]_*_volume.nii`, and placed in the `all_nifti` folder, as well as corresponding subfolders in the `prediction_sources` subfolders. Available ground truth scans (`Sub[x]/ground_segs/*.nii` may also be placed in `prediction_sources` subfolders if available and prediction quality assessment is desired. Remember to place scans in the appropriate `over_512` and `under_512` directories according to their maximum dimension (aside from the dimension corresponding to the long axis of the arm, along which slices are collected). 
 
 ### Training Sources
 
@@ -153,7 +148,7 @@ group_1
 │       └── trial6_30_fs_volume_ed.nii
 ```
 
-Each `group_[j]_[k]` folder contains all data used for training that group, structured as a series of subfolders, each containing a single 3D volumetric scan and its associated segmentation. In general, structure below each `group_[j]_[k]` subfolder is not important, only that all volumes and their corresponding segmentations are included. **TODO**: Are the trial prefixes important? Are the subfolders with a single volume and segmentation important? How do you tell the difference between vol and seg? Suffix?
+Each `group_[j]_[k]` folder contains all data used for training that group, structured as a series of subfolders, each containing a single 3D volumetric scan and its associated segmentation. Note that, similarly to the requirements of `prediction_sources`, all subfolders and NIfTI filenames should contain the prefix `trial_`, all volumes the characters `vol`, and all segmentations the characters `seg`.
 
 ## Model Training 
 
@@ -163,7 +158,7 @@ To train a model, first ensure that the `models` and `training_groups` directori
 
 Add an entry to `trainingconfig.ini` (or modify the `DEFAULT` entry), specifying (at minimum) the directories in which the desired model and training data are stored using the appropriate variables. You may safely use the hyperparameters specified in this repository's config file or may specify your own.
 
-Two additional important parameters  may be set by modifying the source code of `training.py` directly. First, the `total_keep` argument of each call to `split_data` specifies the total number of 2D image slices used from each scan (and, for the second call, augmented scan). Note that for general training purposes, these numbers should be set as large as possible; here, they are set relatively low to accommodate fair comparison of training methodologies for our associated publication. **TODO**: what's the second important parameter? also what happens if you set total keep to like a billion?
+An additional important parameter may be set by modifying the source code of `training.py` directly; namely, the `total_keep` argument of each call to `split_data` specifies the total number of 2D image slices used from each scan (and, for the second call, augmented scan). Note that for general training purposes, these numbers should be set to 0, which is a special case that uses all available data; here, they are set relatively low to accommodate fair comparison of training methodologies for our associated publication.
 
 To begin training, run
 
@@ -171,7 +166,7 @@ To begin training, run
 python training.py [model_name] -s [trainingconfig_section_name]
 ```
 
-in terminal, where `[training_config_section_name]` corresponds to the section header of `trainingconfig.ini`, and `[model_name]` may be chosen as desired. **TODO**: is this true?
+in terminal, where `[training_config_section_name]` corresponds to the section header of `trainingconfig.ini`, and `[model_name]` (which may be chosen as desired, conventionally as the same section header) specifies the directory inside `models` where training metadata will be stored.
 
 ### Queuing Training for Multiple Models
 
@@ -183,13 +178,19 @@ sh trainmultiple.sh
 
 ## Predicting Segmentations
 
-Models created with the provided `training.py` script are saved using `tf.train.Saver` and so can be restored with `tf.train.Saver.restore()`. The provided `save_model` and `load_model` methods in `pipeline.py` can be used to work with a single or small number of models.
+The easiest method of generating multiple predictions for multiple models is via the `predict_all_groups.py` script. Assuming the directory structure above (with special attention to the `Sub[x]` directories), modify the script variables `over_512_configs` and `under_512_configs` to contain the appropriate directory paths. Note that each variable contains a list of 3-tuples, each of which contains as first element the path to where the ground truth data to be used for prediction is stored, as second the path to where the predictions will be saved, and as third the path to all the available ground truth files for the given subject. As described above, these files are separated by size based on padding; for more information on why this is necessary, see the _Setup/Subjects_ section above. **TODO**: can we move this script outside? also is that really what that 3-tuple means?
 
-Once a model is loaded, `predict_whole_seg` can be used to generate a prediction of a single NIfTI scan. Alternatively, `predict_all_segs` can be used to generate segmentations for all NIfTIs in a given directory.
+Next, change the assignment of `models_dir` to a directory containing all models that will be used in prediction. (For example, in the file tree shown above, this could be the path to `u-net_v1-0` or to `folder_holding_multiple_models`. Note, however, that subfolders will not be searched recursively, so in the former case no models in the `folder_holding_multiple_models` subfolder will be used in prediction.
 
-The `predict_all_groups.py` script is the easiest way to generate multiple segmentations for multiple models. The directory structure detailed above must be in place in order for this script to function properly, in particular the structure of the directories `SubA`, `SubB`, etc. In order to change which segmentations to generate, modify the `over_512_configs` and `over_512_configs` lists. Each element in these lists is a 3-tuple in which the first element is the path to where the ground truth data to be used for prediction is stored, the second element is the path to where the predictions will be saved, and the third element is the path to all the available ground truth files for that particular subject. There is a separation of "over 512" and "under 512" where applicable for each subject since some scans, in order to be padded to a power of two, must be padded up to 1024 while others only require to be padded up to 512. These can't coexist in the code as it currently exists and so the separation is a workaround of this issue. 
+Lastly, the variable `group_whitelist` should be changed to include the names of all models (i.e., model directory subfolders) to be used in prediction. (For example, if `models_dir` is set to the `unet_v1-0` path, add `model_1` to include it or omit it to exclude it.) This whitelist structure is convenient for development, but can be easily discarded if desired by removing the `if group not in group_whitelist` check.
 
-The last two modifications of this script that will be necessary in order to run on your machine will be to change the assignment of `models_dir` to one for your machine. Place all model folders you want to use for prediction in this directory. As shown in the directory structure above, this could be the path to `folder_holding_multiple_models` or `u-net_v1-0`, for example. It will not search recursively, so in the latter case no models in `folder_holding_multiple_models` will be included. Lastly, you will need to change the variable `group_whitelist` to include the names of the models (the name of the folders holding the model files) to the ones you want to be used for prediction. In the directory structure shown above, if you provided the path to `folder_holding_multiple_models`, you would add `submodel_1` if you want `submodel_1` to be included and omit `submodel_2` to exlude it from prediction. This whitelist was convenient for the development process but you can remove it by removing the check: `if group not in group_whitelist`. 
+Once these variables are set, prediction can be accomplished via
+
+```bash
+python predict_all_groups.py
+```
+
+Note that if only a small number of models are in development, drawing on individual methods from the TensorFlow library and `src/pipeline.py` may be more straightforward. Models saved with the provided `training.py` script are saved using `tf.train.Saver` and can thus be restored with a call to the `tf.train.Saver.restore` method; this is the logic used within the provided `save_model` and `load_model` methods. Once a model is loaded, `predict_whole_seg` can be used to generate a prediction of a single NIfTI scan, and `predict_all_segs` to generate segmentations for all NIfTI files in a given directory.
 
 ## Assessing Segmentation Quality
 
@@ -213,13 +214,13 @@ Use of registration code relies on the `numpy` Python module and the [SimpleElas
 
 Edit the following parameters, at the top of the `run_amsaf` method in `registration.py`:
 
-- `verbose` -- set as `True` or `False` based on desired verbosity
+- `verbose` — set as `True` or `False` based on desired verbosity
 
-- `unsegmented_image` -- set as `read_image("[image_to_be_segmented].nii")` based on the file path of the NIfTI to be segmented
+- `unsegmented_image` — set as `read_image("[image_to_be_segmented].nii")` based on the file path of the NIfTI to be segmented
 
-- `segmented_image`, `segmentation` -- set as `read_image("[segmented_image].nii")` based on the file paths of the segmented NIfTI source image and its associated segmentation, respectively
+- `segmented_image`, `segmentation` — set as `read_image("[segmented_image].nii")` based on the file paths of the segmented NIfTI source image and its associated segmentation, respectively
 
-- `new_segmentation` -- set as desired output file name for new segmentation
+- `new_segmentation` — set as desired output file name for new segmentation
 
 If your segmented and unsegmented images are not already roughly aligned, you may choose to specify a manual affine transformation with which to initialize the registration process by modifying the `A` and `t` parameters.
 
