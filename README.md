@@ -2,7 +2,7 @@
 
 This repo contains the code used in the development of the OpenArm 2.0 data set, a set of volumetric scans of the human arm. Contained in the repo are various scripts that can be used to train a U-Net model on volumetric ultrasound data, generate predictions on a large dataset, and collect information about the quality of the predictions. The code is designed to permit batch training of different network architectures and training data sets to best predict individual subjects of interest.
 
-**If you use this code for academic purposes, please cite the following publication**: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics," in _International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC)_, IEEE, 2019. \*Equal contribution.
+**If you use this code for academic purposes, please cite the following publication**: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "[OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics](https://people.eecs.berkeley.edu/~lhallock/publication/nozikhallock2019embc/)," in _International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC)_, IEEE, 2019. \*Equal contribution.
 
 This README primarily describes the usage of our CNN-based segmentation methods that are the focus of the publication above. In addition, the code used to perform baseline image registration is included, and its usage is documented in the _Registration-Based Segmentation_ section at the bottom of this page.
 
@@ -11,8 +11,6 @@ The documentation below is intended foremost as a record of the code used for Op
 ## Installation
 
 The following Python modules are required to run this code: `numpy`, `tensorflow`, `os`, `sys`, `math`, `logging`, `argparse`, `configparser`, `pickle`, `shutil`, `nibabel`, `scipy`, `gc`, `time`, `timeit`, and `collections`.
-
-
 
 ## Setup
 
@@ -75,8 +73,7 @@ Source data and models should be organized in the following directory structure:
 
 ```
 
-(The example structure above is reasonably comprehensive, aside from the
-`training_groups` folder, which is fleshed out more comprehensively below.)
+(The example structure above is reasonably comprehensive, aside from the `training_groups` folder, which is fleshed out more comprehensively below.)
 
 Broadly, these directories contain the models used for training (`models`), 3D data and predictions for each target subject (`Sub1`, `Sub2`,...), and data used for training each specified network configuration (`training_groups`).
 
@@ -96,9 +93,9 @@ Subject folders `Sub[x]` contain all volumetric data associated with a given sub
 
 Each subject's `predictions` folder is populated at prediction time, though the directory itself (and its `over_512` and `under_512` subdirectories) must be created in advance. Specifically, when predictions are executed for a particular "group" (for which models and training data sources are specified in `trainingconfig.ini`), these prediction files are written into corresponding subfolders within each `predictions` folder.
 
-Each subject's `prediction_sources` folder also contains all raw NifTI scans for which prediction is desired, organized into the same `over_512` and `under_512` directories above, and then subfolders for each trial; this file structure should be created manually before prediction is attempted. Each subfolder must contain, at minimum, the trial's associated volume (`*_volume.nii`). If assessment of segmentation quality will be performed, as described in _Assessing Segmentation Quality_ below, each subfolder should contain the associated ground-truth segmentation as well (`*_seg.nii`). Note that both subfolders and NIfTI files should contain a `trial_` prefix, and volume files should be named identically to their corresponding file in `all_nifti`. (The necessity of both these copies of each file is a redundancy that should be amended in future releases.) Volume filenames should include the characters `vol`, and segmentation filenames should include the characters `seg`.
+Each subject's `prediction_sources` folder also contains all raw NIfTI scans for which prediction is desired, organized into the same `over_512` and `under_512` directories above, and then subfolders for each trial; this file structure should be created manually before prediction is attempted. Each subfolder must contain, at minimum, the trial's associated volume (`*_volume.nii`). If assessment of segmentation quality will be performed, as described in _Assessing Segmentation Quality_ below, each subfolder should contain the associated ground-truth segmentation as well (`*_seg.nii`). Note that both subfolders and NIfTI files should contain a `trial[n]_` prefix, and volume files should be named identically to their corresponding file in `all_nifti`. (The necessity of both these copies of each file is a redundancy that should be amended in future releases.) Volume filenames should include the characters `vol`, and segmentation filenames should include the characters `seg`.
 
-Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions, which requires them to be padded to a power of two: scans smaller than 512x512 are padded to 512x512, while those larger are padded to 1024x1024. The full pipeline places them into separate folders, as they must be treated separately in the code's current instantiation. 
+Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions, which requires them to be padded to a power of two: scans smaller than 512x512 are padded to 512x512, while those larger are padded to 1024x1024. The full pipeline places them into separate folders, as they must be treated separately in the code's current instantiation. Note that this padding system works well for **generating predictions**, but padding larger scans to 1024x1024 results in significantly larger training times. To **train models** using larger scans, we recommend cropping to 512x512 instead.)
 
 To predict segmentations for the available OpenArm 2.0 scans, first download all desired subject archives from the [project website](https://simtk.org/frs/?group_id=1617). All volume files for which predictions are desired (`Sub[x]/volumes/*_volume.mha`) should then be converted to the NIfTI file format (e.g., using [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php), renamed to follow convention `trial[n]_*_volume.nii`, and placed in the `all_nifti` folder, as well as corresponding subfolders in the `prediction_sources` subfolders. Available ground truth scans (`Sub[x]/ground_segs/*.nii` may also be placed in `prediction_sources` subfolders if available and prediction quality assessment is desired. Remember to place scans in the appropriate `over_512` and `under_512` directories according to their maximum dimension (aside from the dimension corresponding to the long axis of the arm, along which slices are collected). 
 
@@ -148,7 +145,7 @@ group_1
 │       └── trial6_30_fs_volume_ed.nii
 ```
 
-Each `group_[j]_[k]` folder contains all data used for training that group, structured as a series of subfolders, each containing a single 3D volumetric scan and its associated segmentation. Note that, similarly to the requirements of `prediction_sources`, all subfolders and NIfTI filenames should contain the prefix `trial_`, all volumes the characters `vol`, and all segmentations the characters `seg`.
+Each `group_[j]_[k]` folder contains all data used for training that group, structured as a series of subfolders, each containing a single 3D volumetric scan and its associated segmentation. Note that, similarly to the requirements of `prediction_sources`, all subfolders and NIfTI filenames should contain the prefix `trial[n]_`, all volumes the characters `vol`, and all segmentations the characters `seg`.
 
 ## Model Training 
 
@@ -194,15 +191,26 @@ Note that if only a small number of models are in development, drawing on indivi
 
 ## Assessing Segmentation Quality
 
-The most straightforward way to assess the quality of many segmentations at once is to use the `generate_accuracy_table.py` script. This will create a table where each row displays a particular model's prediction quality compared to the ground truth segmentation of a specific volume. The accuracy metric should be chosen by specifying as a command line argument either `mean_iou` to select the mean intersection over union accuracy for the bicep and humerus segmentation; or, `total_percent` to calculate accuracy as the number of correctly identified pixels out of the total number of pixels in the segmentation. 
+The most straightforward way to assess the quality of many segmentations at once is to use the `generate_accuracy_table.py` script, which generates a table displaying prediction quality for each desired model with respect to a specified ground truth segmentation. By default, each table row corresponds to a trained network ("model group"), and each column displays the segmentation accuracy of that model group on a specific NIfTI scan. 
 
-Modifications will likely be required for this script to work on your own machine and your particular assortment of data. You should change `base_path`, `subjects`, `cols`, `trial_mapping`, and `groups` to be consistent with your setup. `size_dirs` does not need to be changed. The script assumes that you have the `Sub[x]` folders together in the same directory and `base_path` should be the path to this directory. `subjects` is a list of all the subjects whose volumes you have generated predictions of and whose ground truth segmentations you now intend to compare to. 
+This table can be generated via
 
-`cols` is a list used to define the column headers of the table to be created. Each column (after the first) shows the accuracy of all the models on a single NIfTI. You can include as many trials for which you have ground truth available as you would like. However, if you modify it, update `trial_mapping` to be consistent with `cols`. `trial_mapping` is used in order to index into the table and update each cell with an accuracy value which is the accuracy of that row's model's prediction on the column's NIfTI.
+```bash
+python generate_accuracy_table.py [accuracy_metric]
+```
 
-Finally, `groups` should be a list of the names of the models you've trained and which have generated predictions which you want to assess. These should be the names of folders in the `predictions` directory of a given subject. If you used the provided prediction scripts this will already be the case.
+where `[accuracy_metric]` is either `mean_iou` (to calculate the mean intersection over union accuracy for biceps and humerus segmentations) or `total_percent` (to calculate the total percentage of correctly identified pixels from the entire scan). The script will save both a plaintext and pickled version of the table.
 
-The script will save a plaintext and pickled version of the table.
+The following parameters should be edited to be consistent with your particular directory setup:
+
+- `base_path` — path to the file tree described above (specifically, the path to all `Sub[x]` folders)
+- `subjects` — list of all assessed subject identifiers (i.e., `[x]` for each `Sub[x]`)
+- `size_dirs` — size-separated directories; should not require modification unless new scan sizes are desired
+- `cols` — list of all column headers, formatted (after the first) as `trial[n][x]` for desired trial number `[n]` and subject identifier `[x]`
+- `trial_mapping` — list mapping each column header in `cols` to its column number (should be in the same order as `cols`; used to index into the table and update each cell accordingly)
+- `groups` — list of all networks / groups for which prediction assessment is desired (exactly the names of corresponding folders in the `predictions` directory of a given subject, assuming predictions were generated using the methods described in _Predicting Segmentations_ above)
+
+Note that if your subject identifiers are numbers instead of letters, you may want to refactor this file for your own sanity so that numbers are not concatenated. The code should still function, however, as cells are filled by indexing into particular subject folders, then placing the value at the correct place in the table based on `trial_mapping`, rather than looping through the table and filling each cell in order based on `cols`, which could result in ambiguity.
 
 ## Training with Augmented Data
 
