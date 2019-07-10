@@ -214,7 +214,19 @@ Note that if your subject identifiers are numbers instead of letters, you may wa
 
 ## Training with Augmented Data
 
-You can create rotationally augmented or elastically deformed data from existing NIfTI files by using the provided Jupyter Notebooks, `deformations_dev.ipynb` and `rotations_dev`. 
+You can create rotationally augmented or elastically deformed data from existing NIfTI files by using the provided Jupyter Notebooks, `rotate_nifti.ipynb` and `elastic_deform_nifti.ipynb`.
+
+### Rotational Augmentation
+
+Run `jupyter notebook rotate_nifti.ipynb`. To rotate a NIfTI pair, modify the cell containing `nii_data_dir`, `nii_vol_name`, and `nii_seg_name` as indicated in the notebook to specify the volume and segmentation pair. This assumes that the two are in the same directory. Then modify `degrees` to specify the amount of rotation. 
+
+### Elastic Deformation
+
+Run `jupyter notebook elastic_deform_nifti.ipynb`. Included are two sections: one for elastically deforming a single volume and segmentation pair and one for elastically deforming multiple volume and segmentation pairs at once. In order to use the latter case you need to be working with a single subject and also have an `all_nifti` directory set up as described above. 
+
+When augmenting a single pair, modify the variables as indicated in the notebook similarly to the rotational augmentation case. Additionally, you can change the `alpha` and `sigma` parameters as desired. The `alpha` parameter affects the amount of displacement pixels experience while `sigma` specifies the amount of smoothing.
+
+When using the option to augment multiple pairs, you can modify the `alphas` and `sigmas` lists within the `elastic_transform_all` function. These specify all the possible values of `alpha` and `sigma` to be used for the augmentation. All combinations will be generated.
 
 ## Registration-Based Segmentation
 
