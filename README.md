@@ -89,7 +89,7 @@ Our own pre-trained models used in the publication above are available for downl
 
 ### Subjects
 
-Subject folders `Sub[x]` contain all volumetric data associated with a given subject, including both raw volumetric scans and those that are populated by the network at prediction time. Subfolder `all_nifti` contains all raw NIfTI scans for which a predicted segmentation is desired (which should be formatted as `trial_*_volume.nii`).
+Subject folders `Sub[x]` contain all volumetric data associated with a given subject, including both raw volumetric scans and those that are populated by the network at prediction time. Subfolder `all_nifti` contains all raw NIfTI scans for which a predicted segmentation is desired (which should be formatted as `trial_*_volume.nii`). The `all_nifti` folder is used throughout the provided workflow as a comprehensive source of all available data (and metadata, such as NIfTI headers) for a given subject.
 
 Each subject's `predictions` folder is populated at prediction time, though the directory itself (and its `over_512` and `under_512` subdirectories) must be created in advance. Specifically, when predictions are executed for a particular "group" (for which models and training data sources are specified in `trainingconfig.ini`), these prediction files are written into corresponding subfolders within each `predictions` folder.
 
@@ -204,29 +204,46 @@ where `[accuracy_metric]` is either `mean_iou` (to calculate the mean intersecti
 The following parameters should be edited to be consistent with your particular directory setup:
 
 - `base_path` — path to the file tree described above (specifically, the path to all `Sub[x]` folders)
+
 - `subjects` — list of all assessed subject identifiers (i.e., `[x]` for each `Sub[x]`)
+
 - `size_dirs` — size-separated directories; should not require modification unless new scan sizes are desired
+
 - `cols` — list of all column headers, formatted (after the first) as `trial[n][x]` for desired trial number `[n]` and subject identifier `[x]`
+
 - `trial_mapping` — list mapping each column header in `cols` to its column number (should be in the same order as `cols`; used to index into the table and update each cell accordingly)
+
 - `groups` — list of all networks / groups for which prediction assessment is desired (exactly the names of corresponding folders in the `predictions` directory of a given subject, assuming predictions were generated using the methods described in _Predicting Segmentations_ above)
 
 Note that if your subject identifiers are numbers instead of letters, you may want to refactor this file for your own sanity so that numbers are not concatenated. The code should still function, however, as cells are filled by indexing into particular subject folders, then placing the value at the correct place in the table based on `trial_mapping`, rather than looping through the table and filling each cell in order based on `cols`, which could result in ambiguity.
 
 ## Training with Augmented Data
 
-You can create rotationally augmented or elastically deformed data from existing NIfTI files by using the provided Jupyter Notebooks, `rotate_nifti.ipynb` and `elastic_deform_nifti.ipynb`.
+Our best performing networks in the above publication make use of augmented data, which can be generated from existing NIfTI using the provided Jupyter Notebooks. Rotated and elastically deformed data can be generated using `rotate_nifti.ipynb` and `elastic_deform_nifti.ipynb`, respectively, and the new NIfTI scans generated can be used in training by placing them in the appropriate `training_groups` subdirectory as described above.
 
 ### Rotational Augmentation
 
-Run `jupyter notebook rotate_nifti.ipynb`. To rotate a NIfTI pair, modify the cell containing `nii_data_dir`, `nii_vol_name`, and `nii_seg_name` as indicated in the notebook to specify the volume and segmentation pair. This assumes that the two are in the same directory. Then modify `degrees` to specify the amount of rotation. 
+Individual NIfTI scan pairs (volume + segmentation) can be rotated around the long axis of the arm using `rotate_nifti.ipynb`. Run
+
+```bash
+jupyter notebook rotate_nifti.ipynb
+```
+
+and modify `nii_data_dir`, `nii_vol_name`, and `nii_seg_name` to the appropriate path and filenames as indicated. Lastly, modify the `degrees` argument to specify the amount of rotation.
 
 ### Elastic Deformation
 
-Run `jupyter notebook elastic_deform_nifti.ipynb`. Included are two sections: one for elastically deforming a single volume and segmentation pair and one for elastically deforming multiple volume and segmentation pairs at once. In order to use the latter case you need to be working with a single subject and also have an `all_nifti` directory set up as described above. 
+NIfTI files can be elastically deformed as individual volume + segmentation pairs or as multiple pairs from a single subject using `elastic_deform_nifti.ipynb`. Run
 
-When augmenting a single pair, modify the variables as indicated in the notebook similarly to the rotational augmentation case. Additionally, you can change the `alpha` and `sigma` parameters as desired. The `alpha` parameter affects the amount of displacement pixels experience while `sigma` specifies the amount of smoothing.
+```bash
+jupyter notebook elastic_deform_nifti.ipynb`
+```
 
-When using the option to augment multiple pairs, you can modify the `alphas` and `sigmas` lists within the `elastic_transform_all` function. These specify all the possible values of `alpha` and `sigma` to be used for the augmentation. All combinations will be generated.
+to access both of these functionalities.
+
+To elastically deform a single NIfTI pair, modify `nii_data_dir`, `nii_vol_name`, and `nii_seg_name` to the appropriate path and filenames indicated in the top section. If desired, modify the `alpha` and `sigma` parameters as desired, which specify the amount of displacement individual pixels experience and the amount of smoothing, respectively.
+
+To elastically deform multiple NIfTI pairs from the same subject, place all NIfTI files for which augmentation is desired in a single directory. Additionally, ensure that the subject's `all_nifti` directory is set up in accordance with the file structure above, as it is used to extract header information for generating the new augmented NIfTI files. Modify `to_deform_dir`, `all_nifti_dir`, and `nii_save_dir` with appropriate file paths, and add all desired alpha and sigma values to `alphas` and `sigmas`, respectively, within the `elastic_transform_all` function. The code will then generate elastically deformed scans for all alpha-sigma pairs and all scans in `to_deform_dir`.
 
 ## Registration-Based Segmentation
 
