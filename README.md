@@ -1,18 +1,22 @@
-# Ultrasound Muscle Segmentation
+# Ultrasound Muscle Segmentation via Convolutional Neural Networks
 
-This repo contains the code used in the development of the OpenArm 2.0 data set, a set of volumetric scans of the human arm. Contained in the repo are various scripts that can be used to train a U-Net model on volumetric ultrasound data, generate predictions on a large dataset, and collect information about the quality of the predictions.
+This repo contains the code used in the development of the OpenArm 2.0 data set, a set of volumetric scans of the human arm. Contained in the repo are various scripts that can be used to train a U-Net model on volumetric ultrasound data, generate predictions on a large dataset, and collect information about the quality of the predictions. The code is designed to permit batch training of different network architectures and training data sets to best predict individual subjects of interest.
 
-If you use this code for academic purposes, please cite the following publication: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics," in International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC), IEEE, 2019. \*equal contribution
+**If you use this code for academic purposes, please cite the following publication**: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics," in _International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC)_, IEEE, 2019. \*Equal contribution.
+
+This README primarily describes the usage of our CNN-based segmentation methods that are the focus of the publication above. In addition, the code used to perform baseline image registration is included, and its usage is documented in the _Registration-Based Segmentation_ section at the bottom of this page.
+
+The documentation below is intended foremost as a record of the code used for OpenArm 2.0 generation and is provided as-is. However, we invite anyone who wishes to adapt and use the code below under a [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
 
 ## Installation
 
-The following Python modules are required to run this code: `numpy`, `tensorflow`, `os`, `sys`, `math`, `logging`, `argparse`, `configparser`, `pickle`, `shutil`, `nibabel`, `scipy`, `gc`, `time`, `timeit`, `collections`.
+The following Python modules are required to run this code: `numpy`, `tensorflow`, `os`, `sys`, `math`, `logging`, `argparse`, `configparser`, `pickle`, `shutil`, `nibabel`, `scipy`, `gc`, `time`, `timeit`, and `collections`.
 
 
 
 ## Setup
 
-Most of the scripts provided here assume that you have source data in the following directory structure somewhere on your machine:
+Source data and models should be organized in the following directory structure:
 
 ```bash
 ├── models
@@ -20,32 +24,20 @@ Most of the scripts provided here assume that you have source data in the follow
 │   │   ├── model_1
 │   │   ├── model_2
 │   │   └── folder_holding_multiple_models
-│   │       ├── submodel_1
-│   │       ├── submodel_2
+│   │       ├── model_3
+│   │       ├── model_4
 │   │       └── ...
 │	├── ...
-├── SubA
-│   ├── all_nifti
-│   ├── predictions
-│   │   └── under_512
-│   │       ├── group_4_5
-│   │       └── ...
-│   ├── prediction_sources
-│   │   ├── over_512
-│   │   └── under_512
-│   │       ├── trial10_30_p5
-│   │       ├── trial1_0_fs
-│   │       └── ...
-├── SubB
+├── Sub1
 │   ├── all_nifti
 │   ├── predictions
 │   │   ├── over_512
-│   │   │   ├── group_10_1_17extra
 │   │   │   ├── group_1_1
+│   │   │   ├── group_1_2
 │   │   │   └── ...
 │   │   └── under_512
-│   │       ├── group_10_1_17extra
 │   │       ├── group_1_1
+│   │       ├── group_1_2
 │   │       └── ...
 │   ├── prediction_sources
 │   │   ├── over_512
@@ -53,64 +45,70 @@ Most of the scripts provided here assume that you have source data in the follow
 │   │   │   ├── trial12_60_gc
 │   │   │   └── ...
 │   │   ├── under_512
-│   │   │   ├── trial10_30_p5
 │   │   │   ├── trial1_0_fs
+│   │   │   ├── trial10_30_p5
 │   │   │   └── ...
-├── Rest of the Sub[x]s...
+├── Additional Sub[x] folders...
 └── training_groups
-    ├── model_1
-    │   ├── model_1_1
+    ├── group_1
+    │   ├── group_1_1
     │   │   ├── trial11_60_fs
     │   │   └── ...
-    │   ├── model_1_2
+    │   ├── group_1_2
     │   │   ├── trial11_60_fs
     │   │   └── ...
-    │   └── model_1_3
+    │   └── group_1_3
     │       ├── trial1_0_fs
     │       └── ...
-    ├── model_2
-    │   ├── model_2_1
+    ├── group_2
+    │   ├── group_2_1
     │   │   └── trial6_30_fs
-    │   ├── model_2_2
+    │   ├── group_2_2
     │   │   ├── trial6_30_fs
     │   │   └── trial7_30_gc
-    │   └── model_2_3
+    │   └── group_2_3
     │       ├── trial10_30_p5
     │       ├── trial10_30_p5_ed
     │       ├── trial9_30_p3
     │       └── ...
-    ├── Rest of the groups...
-    └── trial_names
-        ├── trial1_0_fs
-        ├── trial11_60_fs
-        ├── trial16_90_fs
-        ├── trial2_0_gc
-        ├── trial3_0_p1
-        ├── trial4_0_p3
-        ├── trial5_0_p5
-        ├── trial6_30_fs
-        ├── trial7_30_gc
-        ├── trial8_30_p1
-        └── trial9_30_p3
+    └── Additional training groups...
 
 ```
 
-The provided scripts which automate tasks such as training multiple models, generating segmentations of multiple images over multiple models, and scraping data from trained models or generated segmentations depend on this structure. 
+(The example structure above is reasonably comprehensive, aside from the
+`training_groups` folder, which is fleshed out more comprehensively below.)
+
+Broadly, these directories contain the models used for training (`models`), 3D data and predictions for each target subject (`Sub1`, `Sub2`,...), and data used for training each specified network configuration (`training_groups`).
+
+While some simpler training functionality can be executed without this structure — and some aspects of this structure are more fungible than others — it is necessary for scripts that automate training multiple models, generating segmentations of multiple images over multiple models, and scraping data from trained models or generated segmentations.
+
+Each directory is described in further detail below.
 
 ### Models
 
-The `models` directory is where the Tensorflow model files are stored. Each subdirectory such as `u-net_v1-0` holds all trained models of the same architecture. Inside `u-net_v1-0` are the folders holding the actual Tensorflow model files, so for example `model_1` would hold `checkpoint`, `model_1.data`, `model_1.index`, `model_1.meta`, as well as some other information about the model that gets stored such as plaintext and pickled files with loss per epoch, validation accuracies, etc. 
+TensorFlow model files are stored in the `models` directory. Each subdirectory (e.g., `u-net_v1-0`) contains all trained models of the same architecture. Inside each subdirectory are folders holding the actual Tensorflow model files, including both specified models and data that is logged during training. For example, `model_1` holds `checkpoint`, `model_1.data`, `model_1.index`, and `model_1.meta`, as well as the other information about the model that is stored during training (i.e., plain text and pickled files with loss per epoch, validation accuracies, etc.). Models can also be organized in a deeper folder structure if desired, provided the directory is properly specified in `trainingconfig.ini`, as described in the _Model Training_ section below.
+
+Our own pre-trained models used in the publication above are available for download as part of the [OpenArm repository](https://simtk.org/frs/?group_id=1617). Other models may be used as well.
 
 ### Subjects
 
-The dataset used for this project involved 20 ultrasound scans from 11 participants, labeled subjects A through k (SubA through SubK). Each subject has their own folder with the same minimum structure. For example, in the SubA directory, `all_nifti` contains all the source NiFTI files corresponding to that subject. This will be a minimum of 20 images, however it may be up to 40 depending on if some of the images were manually segmented by humans. The raw images and manually segmented images can be distinguished by the `_volume` and `_seg` suffixes, respectively. 
+Subject folders `Sub[x]` contain all volumetric data associated with a given subject, including both raw volumetric scans and those that are populated by the network at prediction time. Subfolder `all_nifti` contains all raw NIfTI scans for which a predicted segmentation is desired (which should be formatted as `trial_*_volume.nii`).
+
+Each subject's `predictions` folder is populated at prediction time, though the directory itself (and its `over_512` and `under_512` subdirectories) must be created in advance. Specifically, when predictions are executed for a particular "group" (for which models and training data sources are specified in `trainingconfig.ini`), these prediction files are written into corresponding subfolders within each `predictions` folder.
+
+Each subject's `prediction_sources` folder also contains all raw NifTI scans for which prediction is desired, organized into the same `over_512` and `under_512` directories above, and then subfolders for each trial; this file structure should be created manually before prediction is attempted. Each subfolder must contain, at minimum, the trial's associated volume (`*_volume.nii`). If assessment of segmentation quality will be performed, as described in _Assessing Segmentation Quality_ below, each subfolder should contain the associated ground-truth segmentation as well (`*_seg.nii`). Note that both subfolders and NIfTI files should contain a `trial_` prefix, and volume files should be named identically to their corresponding file in `all_nifti`. (The necessity of both these copies of each file is a redundancy that should be amended in future releases.) Volume filenames should include the characters `vol`, and segmentation filenames should include the characters `seg`.
+
+Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions, which requires them to be padded to a power of two: scans smaller than 512x512 are padded to 512x512, while those larger are padded to 1024x1024. The full pipeline places them into separate folders, as they must be treated separately in the code's current instantiation. 
+
+To predict segmentations for the available OpenArm 2.0 scans, first download all desired subject archives from the [project website](https://simtk.org/frs/?group_id=1617). All volume files for which predictions are desired (`Sub[x]/volumes/*_volume.mha`) should then be converted to the NIfTI file format (e.g., using [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php), renamed to follow convention `trial[n]_*_volume.nii`, and placed in the `all_nifti` folder, as well as corresponding subfolders in the `prediction_sources` subfolders. Available ground truth scans (`Sub[x]/ground_segs/*.nii` may also be placed in `prediction_sources` subfolders if available and prediction quality assessment is desired. Remember to place scans in the appropriate `over_512` and `under_512` directories according to their maximum dimension (aside from the dimension corresponding to the long axis of the arm, along which slices are collected). 
 
 ### Training Sources
 
-The `training_groups` subdirectory structure shown above is only partially complete. Below is the internal structure of the `model_1` directory (`model_2` is analogous):
+The `training_groups` directory contains all data used to train each "group" (i.e. specified network and training data set for analysis). Below is an example subdirectory structure (for `training_groups/group_1` above; `group_2` is analogous):
 
 ```bash
-├── model_1_1
+group_1
+├── group_1_1
 │   ├── trial1_0_fs
 │   │   ├── trial1_0_fs_seg.nii
 │   │   └── trial1_0_fs_volume.nii
@@ -123,7 +121,7 @@ The `training_groups` subdirectory structure shown above is only partially compl
 │   └── trial6_30_fs
 │       ├── trial6_30_fs_seg.nii
 │       └── trial6_30_fs_volume.nii
-├── model_1_2
+├── group_1_2
 │   ├── trial1_0_fs
 │   │   ├── trial1_0_fs_seg.nii
 │   │   └── trial1_0_fs_volume.nii
@@ -150,26 +148,96 @@ The `training_groups` subdirectory structure shown above is only partially compl
 │       └── trial6_30_fs_volume_ed.nii
 ```
 
-When using `training.py` to train a new model, you need to give the path to a directory with the structure of `model_1_1` or `model_1_2`. The name of this folder and its `trial` subfolders are labeled only for convenience. The important part is that each `model_x_y` directory holds all of the training data that will be used to train one particular model. Each `trial` subfolder holds both the raw image data as well as the segmented ground truth corresponding to that raw image.
+Each `group_[j]_[k]` folder contains all data used for training that group, structured as a series of subfolders, each containing a single 3D volumetric scan and its associated segmentation. Note that, similarly to the requirements of `prediction_sources`, all subfolders and NIfTI filenames should contain the prefix `trial_`, all volumes the characters `vol`, and all segmentations the characters `seg`.
 
 ## Model Training 
 
-### Training a single model
+### Training a Single Model
 
-To train a model, first step up a directory containing the segmentations you wish to include for training. See the previous section for details on what structure is expected by the training scripts.
+To train a model, first ensure that the `models` and `training_groups` directories are structured as noted above, with the desired model and all desired training data.
 
-You can change the parameters for the training session through a config file `trainingconfig.ini`. If this file does not already exist then you can run the script once to generate it. Two important parameters that are not yet controllable via the config file are the total number of 2d image slices that will be kept by the script for training. These need to be modified in the source code of `training.py` directly by changing the `total_keep` arguments passed into the two calls to `split_data`. Once you have set up the directory containing your data for training and you have the configuration file, create a section in the configuration file for your model. `models_dir` is the directory where the new model folder will be created. `training_data_dir` is the path to the directory where you have set up your desired training data (in the example above this would be the path to `model_1_1`, `model_2_1`, etc). To begin training, call the script from the command line with: `python training.py name_of_your_model -s section_name_in_trainingconfig`. The model name and name of the section in `trainingconfig.ini` do not need to be the same.
+Add an entry to `trainingconfig.ini` (or modify the `DEFAULT` entry), specifying (at minimum) the directories in which the desired model and training data are stored using the appropriate variables. You may safely use the hyperparameters specified in this repository's config file or may specify your own.
 
-### Queuing training for multiple models
+An additional important parameter may be set by modifying the source code of `training.py` directly; namely, the `total_keep` argument of each call to `split_data` specifies the total number of 2D image slices used from each scan (and, for the second call, augmented scan). Note that for general training purposes, these numbers should be set to 0, which is a special case that uses all available data; here, they are set relatively low to accommodate fair comparison of training methodologies for our associated publication.
 
-To set up training for multiple models at once (that is, train any number of models consecutively), follow the steps above to create the training data directory and training config info for the desired models. Then modify the bash script `trainmultiple.sh`, which is just putting each command for an individual model one after the other.
+To begin training, run
+
+```bash
+python training.py [model_name] -s [trainingconfig_section_name]
+```
+
+in terminal, where `[training_config_section_name]` corresponds to the section header of `trainingconfig.ini`, and `[model_name]` (which may be chosen as desired, conventionally as the same section header) specifies the directory inside `models` where training metadata will be stored.
+
+### Queuing Training for Multiple Models
+
+To train multiple models consecutively, follow all instructions above for training a single model, including directory setup and the addition of appropriate sections to `trainingconfig.ini`. Second, modify `trainmultiple.sh` to train the specific models desired. (Note that the example script here also contains examples of prediction, which can be eliminated if not necessary.) Training can then be accomplished via
+
+```bash
+sh trainmultiple.sh
+```
 
 ## Predicting Segmentations
 
-Models created with the provided `training.py` script are saved using `tf.train.Saver` and so can be restored with `tf.train.Saver.restore()`. The provided `save_model` and `load_model` methods in `pipeline.py` can be used to work with a single or small number of models.
+The easiest method of generating multiple predictions for multiple models is via the `predict_all_groups.py` script. Assuming the directory structure above (with special attention to the `Sub[x]` directories), modify the script variables `over_512_configs` and `under_512_configs` to contain the appropriate directory paths. Note that each variable contains a list of 3-tuples, each of which contains as first element the path to where the volumes to be used for prediction are stored, as second the path to where the predictions will be saved, and as third the path to all the available volumes for the given subject. As described above, these files are separated by size based on padding; for more information on why this is necessary, see the _Setup/Subjects_ section above.
 
-Once a model is loaded, `predict_whole_seg` can be used to generate a prediction of a single NIfTI scan. Alternatively, `predict_all_segs` can be used to generate segmentations for all NIfTIs in a given directory.
+Next, change the assignment of `models_dir` to a directory containing all models that will be used in prediction. (For example, in the file tree shown above, this could be the path to `u-net_v1-0` or to `folder_holding_multiple_models`. Note, however, that subfolders will not be searched recursively, so in the former case no models in the `folder_holding_multiple_models` subfolder will be used in prediction.
 
-The `predict_all_groups.py` script is the easiest way to generate multiple segmentations for multiple models. The directory structure detailed above must be in place in order for this script to function properly, in particular the structure of the directories `SubA`, `SubB`, etc. In order to change which segmentations to generate, modify the `over_512_configs` and `over_512_configs` lists. Each element in these lists is a 3-tuple in which the first element is the path to where the ground truth data to be used for prediction is stored, the second element is the path to where the predictions will be saved, and the third element is the path to all the available ground truth files for that particular subject. There is a separation of "over 512" and "under 512" where applicable for each subject since some scans, in order to be padded to a power of two, must be padded up to 1024 while others only require to be padded up to 512. These can't coexist in the code as it currently exists and so the separation is a workaround of this issue. 
+Lastly, the variable `group_whitelist` should be changed to include the names of all models (i.e., model directory subfolders) to be used in prediction. (For example, if `models_dir` is set to the `unet_v1-0` path, add `model_1` to include it or omit it to exclude it.) This whitelist structure is convenient for development, but can be easily discarded if desired by removing the `if group not in group_whitelist` check.
 
-The last two modifications of this script that will be necessary in order to run on your machine will be to change the assignment of `models_dir` to one for your machine. Place all model folders you want to use for prediction in this directory. As shown in the directory structure above, this could be the path to `folder_holding_multiple_models` or `u-net_v1-0`, for example. It will not search recursively, so in the latter case no models in `folder_holding_multiple_models` will be included. Lastly, you will need to change the variable `group_whitelist` to include the names of the models (the name of the folders holding the model files) to the ones you want to be used for prediction. In the directory structure shown above, if you provided the path to `folder_holding_multiple_models`, you would add `submodel_1` if you want `submodel_1` to be included and omit `submodel_2` to exlude it from prediction. This whitelist was convenient for the development process but you can remove it by removing the check: `if group not in group_whitelist`. 
+Once these variables are set, prediction can be accomplished via
+
+```bash
+python predict_all_groups.py
+```
+
+Note that if only a small number of models are in development, drawing on individual methods from the TensorFlow library and `src/pipeline.py` may be more straightforward. Models saved with the provided `training.py` script are saved using `tf.train.Saver` and can thus be restored with a call to the `tf.train.Saver.restore` method; this is the logic used within the provided `save_model` and `load_model` methods. Once a model is loaded, `predict_whole_seg` can be used to generate a prediction of a single NIfTI scan, and `predict_all_segs` to generate segmentations for all NIfTI files in a given directory.
+
+## Assessing Segmentation Quality
+
+The most straightforward way to assess the quality of many segmentations at once is to use the `generate_accuracy_table.py` script. This will create a table where each row displays a particular model's prediction quality compared to the ground truth segmentation of a specific volume. The accuracy metric should be chosen by specifying as a command line argument either `mean_iou` to select the mean intersection over union accuracy for the bicep and humerus segmentation; or, `total_percent` to calculate accuracy as the number of correctly identified pixels out of the total number of pixels in the segmentation. 
+
+Modifications will likely be required for this script to work on your own machine and your particular assortment of data. You should change `base_path`, `subjects`, `cols`, `trial_mapping`, and `groups` to be consistent with your setup. `size_dirs` does not need to be changed. The script assumes that you have the `Sub[x]` folders together in the same directory and `base_path` should be the path to this directory. `subjects` is a list of all the subjects whose volumes you have generated predictions of and whose ground truth segmentations you now intend to compare to. 
+
+`cols` is a list used to define the column headers of the table to be created. Each column (after the first) shows the accuracy of all the models on a single NIfTI. You can include as many trials for which you have ground truth available as you would like. However, if you modify it, update `trial_mapping` to be consistent with `cols`. `trial_mapping` is used in order to index into the table and update each cell with an accuracy value which is the accuracy of that row's model's prediction on the column's NIfTI.
+
+Finally, `groups` should be a list of the names of the models you've trained and which have generated predictions which you want to assess. These should be the names of folders in the `predictions` directory of a given subject. If you used the provided prediction scripts this will already be the case.
+
+The script will save a plaintext and pickled version of the table.
+
+## Training with Augmented Data
+
+You can create rotationally augmented or elastically deformed data from existing NIfTI files by using the provided Jupyter Notebooks, `deformations_dev.ipynb` and `rotations_dev`. 
+
+## Registration-Based Segmentation
+
+In addition to the CNN-based segmentation code above, we provide the registration-based segmentation code, built using [SimpleElastix](https://simpleelastix.github.io/), used as a baseline in the publication above. Its use is documented below.
+
+Note that registration-based segmentation consists of mapping the segmented tissue structures of one scan to another by finding the optimal transformation between the the two raw images. An excellent description of this process can be found [here](https://simpleelastix.readthedocs.io/Introduction.html).
+
+### Installation
+
+Use of registration code relies on the `numpy` Python module and the [SimpleElastix](https://simpleelastix.github.io/) library.
+
+### Setup
+
+Edit the following parameters, at the top of the `run_amsaf` method in `registration.py`:
+
+- `verbose` — set as `True` or `False` based on desired verbosity
+
+- `unsegmented_image` — set as `read_image("[image_to_be_segmented].nii")` based on the file path of the NIfTI to be segmented
+
+- `segmented_image`, `segmentation` — set as `read_image("[segmented_image].nii")` based on the file paths of the segmented NIfTI source image and its associated segmentation, respectively
+
+- `new_segmentation` — set as desired output file name for new segmentation
+
+If your segmented and unsegmented images are not already roughly aligned, you may choose to specify a manual affine transformation with which to initialize the registration process by modifying the `A` and `t` parameters.
+
+By default, the provided code will perform a hierarchy of rigid, affine, and nonlinear transformations, with the result of each registration initializing the next. If you wish to more precisely control the behavior of these transformations, you may edit the `DEFAULT_*` parameter maps included at the bottom of `registration.py`.
+
+### Usage
+
+Run
+
+```bash
+python registration.py
+```
