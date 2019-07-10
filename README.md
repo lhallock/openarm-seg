@@ -98,7 +98,7 @@ Each subject's `predictions` folder is populated at prediction time, though the 
 
 Each subject's `prediction_sources` folder also contains all raw NifTI scans for which prediction is desired, organized into the same `over_512` and `under_512` directories above, and then subfolders for each trial; this file structure should be created manually before prediction is attempted. Each subfolder must contain, at minimum, the trial's associated volume (`*_volume.nii`). If assessment of segmentation quality will be performed, as described in _Assessing Segmentation Quality_ below, each subfolder should contain the associated ground-truth segmentation as well (`*_seg.nii`). Note that both subfolders and NIfTI files should contain a `trial_` prefix, and volume files should be named identically to their corresponding file in `all_nifti`. (The necessity of both these copies of each file is a redundancy that should be amended in future releases.) Volume filenames should include the characters `vol`, and segmentation filenames should include the characters `seg`.
 
-Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions, which requires them to be padded to a power of two: scans smaller than 512x512 are padded to 512x512, while those larger are padded to 1024x1024. The full pipeline places them into separate folders, as they must be treated separately in the code's current instantiation. **TODO** are they cropped or padded? I thought we were using Sai's crops?
+Note that the `over_512` and `under_512` directories separate scans of which predicted slices are larger and smaller than 512x512 pixels. This is an artifact of the way the neural network generates predictions, which requires them to be padded to a power of two: scans smaller than 512x512 are padded to 512x512, while those larger are padded to 1024x1024. The full pipeline places them into separate folders, as they must be treated separately in the code's current instantiation. 
 
 To predict segmentations for the available OpenArm 2.0 scans, first download all desired subject archives from the [project website](https://simtk.org/frs/?group_id=1617). All volume files for which predictions are desired (`Sub[x]/volumes/*_volume.mha`) should then be converted to the NIfTI file format (e.g., using [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php), renamed to follow convention `trial[n]_*_volume.nii`, and placed in the `all_nifti` folder, as well as corresponding subfolders in the `prediction_sources` subfolders. Available ground truth scans (`Sub[x]/ground_segs/*.nii` may also be placed in `prediction_sources` subfolders if available and prediction quality assessment is desired. Remember to place scans in the appropriate `over_512` and `under_512` directories according to their maximum dimension (aside from the dimension corresponding to the long axis of the arm, along which slices are collected). 
 
@@ -178,7 +178,7 @@ sh trainmultiple.sh
 
 ## Predicting Segmentations
 
-The easiest method of generating multiple predictions for multiple models is via the `predict_all_groups.py` script. Assuming the directory structure above (with special attention to the `Sub[x]` directories), modify the script variables `over_512_configs` and `under_512_configs` to contain the appropriate directory paths. Note that each variable contains a list of 3-tuples, each of which contains as first element the path to where the ground truth data to be used for prediction is stored, as second the path to where the predictions will be saved, and as third the path to all the available ground truth files for the given subject. As described above, these files are separated by size based on padding; for more information on why this is necessary, see the _Setup/Subjects_ section above. **TODO**: can we move this script outside? also is that really what that 3-tuple means?
+The easiest method of generating multiple predictions for multiple models is via the `predict_all_groups.py` script. Assuming the directory structure above (with special attention to the `Sub[x]` directories), modify the script variables `over_512_configs` and `under_512_configs` to contain the appropriate directory paths. Note that each variable contains a list of 3-tuples, each of which contains as first element the path to where the volumes to be used for prediction are stored, as second the path to where the predictions will be saved, and as third the path to all the available volumes for the given subject. As described above, these files are separated by size based on padding; for more information on why this is necessary, see the _Setup/Subjects_ section above.
 
 Next, change the assignment of `models_dir` to a directory containing all models that will be used in prediction. (For example, in the file tree shown above, this could be the path to `u-net_v1-0` or to `folder_holding_multiple_models`. Note, however, that subfolders will not be searched recursively, so in the former case no models in the `folder_holding_multiple_models` subfolder will be used in prediction.
 
@@ -194,11 +194,19 @@ Note that if only a small number of models are in development, drawing on indivi
 
 ## Assessing Segmentation Quality
 
-**TODO**
+The most straightforward way to assess the quality of many segmentations at once is to use the `generate_accuracy_table.py` script. This will create a table where each row displays a particular model's prediction quality compared to the ground truth segmentation of a specific volume. The accuracy metric should be chosen by specifying as a command line argument either `mean_iou` to select the mean intersection over union accuracy for the bicep and humerus segmentation; or, `total_percent` to calculate accuracy as the number of correctly identified pixels out of the total number of pixels in the segmentation. 
+
+Modifications will likely be required for this script to work on your own machine and your particular assortment of data. You should change `base_path`, `subjects`, `cols`, `trial_mapping`, and `groups` to be consistent with your setup. `size_dirs` does not need to be changed. The script assumes that you have the `Sub[x]` folders together in the same directory and `base_path` should be the path to this directory. `subjects` is a list of all the subjects whose volumes you have generated predictions of and whose ground truth segmentations you now intend to compare to. 
+
+`cols` is a list used to define the column headers of the table to be created. Each column (after the first) shows the accuracy of all the models on a single NIfTI. You can include as many trials for which you have ground truth available as you would like. However, if you modify it, update `trial_mapping` to be consistent with `cols`. `trial_mapping` is used in order to index into the table and update each cell with an accuracy value which is the accuracy of that row's model's prediction on the column's NIfTI.
+
+Finally, `groups` should be a list of the names of the models you've trained and which have generated predictions which you want to assess. These should be the names of folders in the `predictions` directory of a given subject. If you used the provided prediction scripts this will already be the case.
+
+The script will save a plaintext and pickled version of the table.
 
 ## Training with Augmented Data
 
-**TODO**
+You can create rotationally augmented or elastically deformed data from existing NIfTI files by using the provided Jupyter Notebooks, `deformations_dev.ipynb` and `rotations_dev`. 
 
 ## Registration-Based Segmentation
 
