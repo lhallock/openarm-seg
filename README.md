@@ -219,7 +219,7 @@ Note that if your subject identifiers are numbers instead of letters, you may wa
 
 ## Training with Augmented Data
 
-Our best performing networks in the above publication make use of augmented data, which can be generated from existing NIfTI using the provided Jupyter Notebooks. Rotated and elastically deformed data can be generated using `rotate_nifti.ipynb` and `elastic_deform_nifti.ipynb`, respectively, and the new NIfTI scans generated can be used in training by placing them in the appropriate `training_groups` subdirectory as described above.
+Our best performing networks in the above publication make use of augmented data, which can be generated from existing NIfTI files using the provided Jupyter Notebooks. Rotated and elastically deformed data can be generated using `rotate_nifti.ipynb` and `elastic_deform_nifti.ipynb`, respectively, and the new NIfTI scans generated can be used in training by placing them in the appropriate `training_groups` subdirectory as described above.
 
 ### Rotational Augmentation
 
@@ -241,9 +241,9 @@ jupyter notebook elastic_deform_nifti.ipynb`
 
 to access both of these functionalities.
 
-To elastically deform a single NIfTI pair, modify `nii_data_dir`, `nii_vol_name`, and `nii_seg_name` to the appropriate path and filenames indicated in the top section. If desired, modify the `alpha` and `sigma` parameters as desired, which specify the amount of displacement individual pixels experience and the amount of smoothing, respectively.
+To elastically deform a single NIfTI pair, modify `nii_data_dir`, `nii_vol_name`, and `nii_seg_name` to the appropriate path and filenames indicated in the top section. If desired, modify the `alpha` and `sigma` parameters, which specify the amount of displacement individual pixels experience and the amount of smoothing, respectively.
 
-To elastically deform multiple NIfTI pairs from the same subject, place all NIfTI files for which augmentation is desired in a single directory. Additionally, ensure that the subject's `all_nifti` directory is set up in accordance with the file structure above, as it is used to extract header information for generating the new augmented NIfTI files. Modify `to_deform_dir`, `all_nifti_dir`, and `nii_save_dir` with appropriate file paths, and add all desired alpha and sigma values to `alphas` and `sigmas`, respectively, within the `elastic_transform_all` function. The code will then generate elastically deformed scans for all alpha-sigma pairs and all scans in `to_deform_dir`.
+To elastically deform multiple NIfTI pairs from the same subject, place all NIfTI files for which augmentation is desired in a single directory. Additionally, ensure that the subject's `all_nifti` directory is set up in accordance with the file structure above, as it is used to extract header information for generating the new augmented NIfTI files. Modify `to_deform_dir`, `all_nifti_dir`, and `nii_save_dir` with appropriate file paths, and add all desired alpha and sigma values to `alphas` and `sigmas`, respectively, within the `elastic_transform_all` function. The code will then generate elastically deformed scans for all alpha-sigma combinations and all scans in `to_deform_dir`.
 
 ## Registration-Based Segmentation
 
