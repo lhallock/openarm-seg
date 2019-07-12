@@ -1,5 +1,7 @@
 # Ultrasound Muscle Segmentation via Convolutional Neural Networks
 
+![openarm-seg segmentation exemplar](https://people.eecs.berkeley.edu/~lhallock/publication/nozikhallock2019embc/featured.png)
+
 This repo contains the code used in the development of the OpenArm 2.0 data set, a set of volumetric scans of the human arm. Contained in the repo are various scripts that can be used to train a U-Net model on volumetric ultrasound data, generate predictions on a large dataset, and collect information about the quality of the predictions. The code is designed to permit batch training of different network architectures and training data sets to best predict individual subjects of interest.
 
 **If you use this code for academic purposes, please cite the following publication**: Yonatan Nozik\*, Laura A. Hallock\*, Daniel Ho, Sai Mandava, Chris Mitchell, Thomas Hui Li, and Ruzena Bajcsy, "[OpenArm 2.0: Automated Segmentation of 3D Tissue Structures for Multi-Subject Study of Muscle Deformation Dynamics](https://people.eecs.berkeley.edu/~lhallock/publication/nozikhallock2019embc/)," in _International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC)_, IEEE, 2019. \*Equal contribution.
