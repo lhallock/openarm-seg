@@ -9,43 +9,57 @@ import logging
 import time
 
 
-over_512_configs = [("/media/jessica/Storage1/SubB/prediction_sources/over_512", "/media/jessica/Storage1/SubB/predictions/over_512", "/media/jessica/Storage1/SubB/all_nifti"),
-					("/media/jessica/Storage1/SubC/prediction_sources/over_512", "/media/jessica/Storage1/SubC/predictions/over_512", "/media/jessica/Storage1/SubC/all_nifti"),
-					("/media/jessica/Storage1/SubJ/prediction_sources/over_512", "/media/jessica/Storage1/SubJ/predictions/over_512", "/media/jessica/Storage1/SubJ/all_nifti"),
+# over_512_configs reference block: using this block will predict on all > 512 scans in the data set.
+
+# over_512_configs = [("/media/jessica/Storage1/SubB/prediction_sources/over_512", "/media/jessica/Storage1/SubB/predictions/over_512", "/media/jessica/Storage1/SubB/all_nifti"),
+# 					("/media/jessica/Storage1/SubC/prediction_sources/over_512", "/media/jessica/Storage1/SubC/predictions/over_512", "/media/jessica/Storage1/SubC/all_nifti"),
+# 					("/media/jessica/Storage1/SubJ/prediction_sources/over_512", "/media/jessica/Storage1/SubJ/predictions/over_512", "/media/jessica/Storage1/SubJ/all_nifti"),
+# 					("/media/jessica/Storage1/SubK/prediction_sources/over_512", "/media/jessica/Storage1/SubK/predictions/over_512", "/media/jessica/Storage1/SubK/all_nifti")]
+
+# undeR_512_configs reference block: using this block will predict on all <= 512 scans in the data set.
+
+# under_512_configs = [("/media/jessica/Storage1/SubA/prediction_sources/under_512", "/media/jessica/Storage1/SubA/predictions/under_512", "/media/jessica/Storage1/SubA/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubB/prediction_sources/under_512", "/media/jessica/Storage1/SubB/predictions/under_512", "/media/jessica/Storage1/SubB/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubC/prediction_sources/under_512", "/media/jessica/Storage1/SubC/predictions/under_512", "/media/jessica/Storage1/SubC/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubD/prediction_sources/under_512", "/media/jessica/Storage1/SubD/predictions/under_512", "/media/jessica/Storage1/SubD/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubE/prediction_sources/under_512", "/media/jessica/Storage1/SubE/predictions/under_512", "/media/jessica/Storage1/SubE/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubF/prediction_sources/under_512", "/media/jessica/Storage1/SubF/predictions/under_512", "/media/jessica/Storage1/SubF/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubG/prediction_sources/under_512", "/media/jessica/Storage1/SubG/predictions/under_512", "/media/jessica/Storage1/SubG/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubH/prediction_sources/under_512", "/media/jessica/Storage1/SubH/predictions/under_512", "/media/jessica/Storage1/SubH/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubI/prediction_sources/under_512", "/media/jessica/Storage1/SubI/predictions/under_512", "/media/jessica/Storage1/SubI/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubJ/prediction_sources/under_512", "/media/jessica/Storage1/SubJ/predictions/under_512", "/media/jessica/Storage1/SubJ/all_nifti"),
+# 					 ("/media/jessica/Storage1/SubK/prediction_sources/under_512", "/media/jessica/Storage1/SubK/predictions/under_512", "/media/jessica/Storage1/SubK/all_nifti")]
+
+over_512_configs = [("/media/jessica/Storage1/SubC/prediction_sources/over_512", "/media/jessica/Storage1/SubC/predictions/over_512", "/media/jessica/Storage1/SubC/all_nifti"),
 					("/media/jessica/Storage1/SubK/prediction_sources/over_512", "/media/jessica/Storage1/SubK/predictions/over_512", "/media/jessica/Storage1/SubK/all_nifti")]
 
-under_512_configs = [("/media/jessica/Storage1/SubA/prediction_sources/under_512", "/media/jessica/Storage1/SubA/predictions/under_512", "/media/jessica/Storage1/SubA/all_nifti"),
-					 ("/media/jessica/Storage1/SubB/prediction_sources/under_512", "/media/jessica/Storage1/SubB/predictions/under_512", "/media/jessica/Storage1/SubB/all_nifti"),
-					 ("/media/jessica/Storage1/SubC/prediction_sources/under_512", "/media/jessica/Storage1/SubC/predictions/under_512", "/media/jessica/Storage1/SubC/all_nifti"),
-					 ("/media/jessica/Storage1/SubD/prediction_sources/under_512", "/media/jessica/Storage1/SubD/predictions/under_512", "/media/jessica/Storage1/SubD/all_nifti"),
-					 ("/media/jessica/Storage1/SubE/prediction_sources/under_512", "/media/jessica/Storage1/SubE/predictions/under_512", "/media/jessica/Storage1/SubE/all_nifti"),
-					 ("/media/jessica/Storage1/SubF/prediction_sources/under_512", "/media/jessica/Storage1/SubF/predictions/under_512", "/media/jessica/Storage1/SubF/all_nifti"),
+under_512_configs = [("/media/jessica/Storage1/SubC/prediction_sources/under_512", "/media/jessica/Storage1/SubC/predictions/under_512", "/media/jessica/Storage1/SubC/all_nifti"),
 					 ("/media/jessica/Storage1/SubG/prediction_sources/under_512", "/media/jessica/Storage1/SubG/predictions/under_512", "/media/jessica/Storage1/SubG/all_nifti"),
 					 ("/media/jessica/Storage1/SubH/prediction_sources/under_512", "/media/jessica/Storage1/SubH/predictions/under_512", "/media/jessica/Storage1/SubH/all_nifti"),
-					 ("/media/jessica/Storage1/SubI/prediction_sources/under_512", "/media/jessica/Storage1/SubI/predictions/under_512", "/media/jessica/Storage1/SubI/all_nifti"),
-					 ("/media/jessica/Storage1/SubJ/prediction_sources/under_512", "/media/jessica/Storage1/SubJ/predictions/under_512", "/media/jessica/Storage1/SubJ/all_nifti"),
-					 ("/media/jessica/Storage1/SubK/prediction_sources/under_512", "/media/jessica/Storage1/SubK/predictions/under_512", "/media/jessica/Storage1/SubK/all_nifti"),]
+					 ("/media/jessica/Storage1/SubK/prediction_sources/under_512", "/media/jessica/Storage1/SubK/predictions/under_512", "/media/jessica/Storage1/SubK/all_nifti")]
 
 
-group_whitelist = ['group_1_1_final_sub', 'group_1_4_final_sub', 'group_1_5_final_sub',
+# group_whitelist = ['group_1_1_final_sub', 'group_1_4_final_sub', 'group_1_5_final_sub',
 
-		  		   'group_2_5_final_sub', 'group_2_6_final_sub',
+# 		  		   'group_2_5_final_sub', 'group_2_6_final_sub',
 
-		  		   'group_3_2_final_sub', 'group_3_3_final_sub', 'group_3_4_final_sub',
+# 		  		   'group_3_2_final_sub', 'group_3_3_final_sub', 'group_3_4_final_sub',
 
-		  		   'group_4_4_final_sub', 'group_4_5_final_sub']
+# 		  		   'group_4_4_final_sub', 'group_4_5_final_sub']
+
+group_whitelist = ['G_augs_group', 'H_augs_group', 'C_augs_group', 'K_augs_group']
 
 
 def main():
 	args = sys.argv[1:]
 
-	models_dir = args[0] if len(args) != 0 else "/media/jessica/Storage1/models/u-net_v1-0/groups_final_sub"
+	models_dir = args[0] if len(args) != 0 else "/media/jessica/Storage1/models/u-net_v1-0/"
 
 	group_folders = []
 
 	for model_folder in sorted(os.listdir(models_dir))[::-1]:
 		print(model_folder)
-		if os.path.isdir(os.path.join(models_dir, model_folder)) and model_folder.startswith("group_"):
+		if os.path.isdir(os.path.join(models_dir, model_folder)) and 'group' in model_folder:
 			group_folders.append(model_folder)
 
 	print(group_folders)
